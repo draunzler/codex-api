@@ -842,9 +842,9 @@ class GenshinAIAssistant:
             raise Exception(f"Failed to get build recommendations: {str(e)}")
     
     def _calculate_optimal_stats(self, character_name: str, element: str) -> Dict[str, Any]:
-        """Calculate optimal stat targets for a character."""
+        """Calculate optimal stat targets for a character based on element and general principles."""
         try:
-            # Base optimal stats (can be refined per character)
+            # Base optimal stats for most characters
             optimal_stats = {
                 "crit_rate": 70.0,  # Target 70% crit rate
                 "crit_dmg": 140.0,  # Target 140% crit damage
@@ -854,33 +854,29 @@ class GenshinAIAssistant:
                 "elemental_dmg_bonus": 46.6  # Goblet main stat
             }
             
-            # Character-specific adjustments
-            character_lower = character_name.lower()
+            # Element-based adjustments (more general approach)
+            element_lower = element.lower()
             
-            # EM-focused characters
-            if character_lower in ["kazuha", "sucrose", "venti", "nahida", "tighnari"]:
+            # Anemo characters typically focus on EM for Swirl reactions
+            if element_lower == "anemo":
                 optimal_stats["elemental_mastery"] = 800.0
                 optimal_stats["crit_rate"] = 50.0
                 optimal_stats["crit_dmg"] = 100.0
             
-            # High ER requirements
-            elif character_lower in ["raiden", "xiangling", "bennett", "xingqiu"]:
-                optimal_stats["energy_recharge"] = 200.0
+            # Dendro characters often benefit from EM for reactions
+            elif element_lower == "dendro":
+                optimal_stats["elemental_mastery"] = 600.0
             
-            # HP scalers
-            elif character_lower in ["hu tao", "zhongli", "kokomi"]:
-                optimal_stats["hp_percent"] = 50.0
-                if character_lower == "hu tao":
-                    optimal_stats["crit_rate"] = 60.0  # Lower due to passive
-            
-            # DEF scalers
-            elif character_lower in ["albedo", "itto", "gorou"]:
-                optimal_stats["def_percent"] = 50.0
+            # Geo characters may benefit from DEF scaling (some characters)
+            elif element_lower == "geo":
+                optimal_stats["def_percent"] = 30.0
             
             return {
                 "targets": optimal_stats,
                 "priority_order": ["CRIT Rate%", "CRIT DMG%", "ATK%", "Elemental Mastery", "Energy Recharge%"],
-                "notes": f"Optimal stat targets for {character_name} ({element} element)"
+                "notes": f"General optimal stat targets for {character_name} ({element} element)",
+                "element_focus": element_lower,
+                "customization_note": "These are general targets. Specific characters may have different optimal builds based on their kit and role."
             }
             
         except Exception as e:
@@ -888,89 +884,127 @@ class GenshinAIAssistant:
             return {"error": "Could not calculate optimal stats"}
     
     def _get_weapon_recommendations(self, character_name: str, element: str) -> Dict[str, List[str]]:
-        """Get weapon recommendations for a character."""
-        # This is a simplified version - in a real implementation, 
-        # you'd have a comprehensive weapon database
+        """Get general weapon recommendations based on element and weapon type."""
+        # General weapon recommendations by rarity
         weapon_recommendations = {
-            "5_star": ["Staff of Homa", "Primordial Jade Winged-Spear", "Engulfing Lightning"],
-            "4_star": ["The Catch", "Deathmatch", "Dragon's Bane"],
-            "3_star": ["White Tassel", "Halberd"]
+            "5_star": ["Signature weapons", "Universal 5-star options", "Element-matching weapons"],
+            "4_star": ["Event weapons", "Craftable options", "Gacha 4-star weapons"],
+            "3_star": ["F2P options", "Early game weapons"]
         }
         
-        # Character-specific recommendations would go here
-        character_lower = character_name.lower()
+        # Add element-specific notes
+        element_notes = {
+            "pyro": "Focus on ATK% and CRIT substats",
+            "hydro": "Consider EM for reaction teams",
+            "electro": "Energy Recharge often important",
+            "cryo": "CRIT Rate valuable for Cryo resonance",
+            "anemo": "Elemental Mastery for Swirl damage",
+            "geo": "ATK% or DEF% depending on character",
+            "dendro": "Elemental Mastery for reaction damage"
+        }
         
-        if character_lower in ["hu tao", "zhongli", "xiao"]:
-            weapon_recommendations["5_star"] = ["Staff of Homa", "Primordial Jade Winged-Spear", "Vortex Vanquisher"]
-        elif character_lower in ["raiden", "xiangling"]:
-            weapon_recommendations["5_star"] = ["Engulfing Lightning", "Staff of Homa", "The Catch"]
+        weapon_recommendations["element_focus"] = element_notes.get(element.lower(), "Standard DPS stats")
+        weapon_recommendations["general_advice"] = "Check character's scaling stats and team role for optimal weapon choice"
         
         return weapon_recommendations
     
-    def _get_talent_priority(self, character_name: str) -> List[str]:
-        """Get talent leveling priority for a character."""
-        character_lower = character_name.lower()
-        
-        # Default priority
+    def _get_talent_priority(self, character_name: str) -> Dict[str, Any]:
+        """Get general talent leveling priority."""
+        # Default priority for most DPS characters
         priority = ["Elemental Burst", "Elemental Skill", "Normal Attack"]
         
-        # Character-specific priorities
-        if character_lower in ["hu tao", "ganyu", "yoimiya"]:
-            priority = ["Normal Attack", "Elemental Skill", "Elemental Burst"]
-        elif character_lower in ["bennett", "xingqiu", "kazuha"]:
-            priority = ["Elemental Burst", "Elemental Skill", "Normal Attack"]
-        elif character_lower in ["albedo", "fischl"]:
-            priority = ["Elemental Skill", "Elemental Burst", "Normal Attack"]
-        
-        return priority
+        return {
+            "priority_order": priority,
+            "general_advice": [
+                "Level the talent that contributes most to your character's role",
+                "DPS characters: Focus on their main damage source first",
+                "Support characters: Prioritize utility talents (usually Burst or Skill)",
+                "Check character's kit to determine which talent scales best"
+            ],
+            "investment_levels": {
+                "minimum": "Level 6 for all important talents",
+                "recommended": "Level 8 for main damage talents",
+                "optimal": "Level 9-10 for main DPS characters"
+            }
+        }
     
     def _get_team_synergies(self, character_name: str, element: str) -> Dict[str, List[str]]:
-        """Get team synergy recommendations for a character."""
+        """Get general team synergy recommendations based on element."""
         synergies = {
-            "best_teammates": [],
             "elemental_resonance": [],
+            "reaction_partners": [],
             "support_options": [],
-            "reaction_partners": []
+            "general_advice": []
         }
         
-        character_lower = character_name.lower()
+        element_lower = element.lower()
         
-        # Example synergies (would be expanded in real implementation)
-        if character_lower == "hu tao":
-            synergies["best_teammates"] = ["Xingqiu", "Zhongli", "Albedo"]
-            synergies["elemental_resonance"] = ["Pyro Resonance (+25% ATK)"]
-            synergies["reaction_partners"] = ["Xingqiu (Vaporize)", "Kaeya (Melt)"]
-        elif character_lower == "ganyu":
-            synergies["best_teammates"] = ["Mona", "Venti", "Diona"]
-            synergies["elemental_resonance"] = ["Cryo Resonance (+15% CRIT Rate)"]
-            synergies["reaction_partners"] = ["Mona (Freeze)", "Xiangling (Melt)"]
+        # Element-based synergies
+        if element_lower == "pyro":
+            synergies["elemental_resonance"] = ["Pyro Resonance: +25% ATK"]
+            synergies["reaction_partners"] = ["Hydro (Vaporize)", "Cryo (Melt)", "Electro (Overloaded)"]
+        elif element_lower == "hydro":
+            synergies["elemental_resonance"] = ["Hydro Resonance: +25% HP"]
+            synergies["reaction_partners"] = ["Pyro (Vaporize)", "Electro (Electro-Charged)", "Cryo (Freeze)"]
+        elif element_lower == "electro":
+            synergies["elemental_resonance"] = ["Electro Resonance: Energy generation"]
+            synergies["reaction_partners"] = ["Hydro (Electro-Charged)", "Pyro (Overloaded)", "Cryo (Superconduct)"]
+        elif element_lower == "cryo":
+            synergies["elemental_resonance"] = ["Cryo Resonance: +15% CRIT Rate"]
+            synergies["reaction_partners"] = ["Hydro (Freeze)", "Pyro (Melt)", "Electro (Superconduct)"]
+        elif element_lower == "anemo":
+            synergies["elemental_resonance"] = ["Anemo Resonance: Reduced stamina consumption"]
+            synergies["reaction_partners"] = ["Any element (Swirl)", "VV artifact set for resistance shred"]
+        elif element_lower == "geo":
+            synergies["elemental_resonance"] = ["Geo Resonance: +15% DMG, +15% Shield Strength"]
+            synergies["reaction_partners"] = ["Crystallize shields with any element"]
+        elif element_lower == "dendro":
+            synergies["elemental_resonance"] = ["Dendro Resonance: EM and reaction bonuses"]
+            synergies["reaction_partners"] = ["Electro (Quicken)", "Hydro (Bloom)", "Pyro (Burning)"]
+        
+        synergies["general_advice"] = [
+            "Consider team roles: DPS, Sub-DPS, Support, Healer",
+            "Energy management is crucial for burst-dependent characters",
+            "Elemental reactions can significantly increase damage",
+            "Shield or healing support recommended for survivability"
+        ]
         
         return synergies
     
     def _get_build_variants(self, character_name: str, element: str) -> List[Dict[str, Any]]:
-        """Get different build variants for a character."""
+        """Get general build variants based on element and common roles."""
         variants = []
         
-        character_lower = character_name.lower()
+        element_lower = element.lower()
         
-        # Example variants (would be expanded)
-        if character_lower == "kazuha":
-            variants = [
-                {
-                    "name": "EM Support",
-                    "focus": "Elemental Mastery",
-                    "artifacts": ["Viridescent Venerer"],
-                    "main_stats": {"sands": "EM", "goblet": "EM", "circlet": "EM"},
-                    "description": "Maximum swirl damage and team buff"
-                },
-                {
-                    "name": "Hybrid DPS",
-                    "focus": "Balanced EM/CRIT",
-                    "artifacts": ["Viridescent Venerer"],
-                    "main_stats": {"sands": "ATK%", "goblet": "Anemo DMG%", "circlet": "CRIT"},
-                    "description": "Personal damage with team support"
-                }
-            ]
+        # DPS variant (common for most characters)
+        variants.append({
+            "name": "Main DPS",
+            "focus": "Maximum damage output",
+            "artifacts": ["Element-specific damage sets", "Universal DPS sets"],
+            "main_stats": {"sands": "ATK%", "goblet": f"{element} DMG%", "circlet": "CRIT Rate/DMG"},
+            "description": "Focused on personal damage and field time"
+        })
+        
+        # Support variant (if applicable)
+        if element_lower in ["anemo", "geo", "dendro"]:
+            variants.append({
+                "name": "Support",
+                "focus": "Team utility and reactions",
+                "artifacts": ["Element-specific support sets", "Energy Recharge sets"],
+                "main_stats": {"sands": "ER% or EM", "goblet": f"{element} DMG% or EM", "circlet": "CRIT or EM"},
+                "description": "Focused on supporting team and enabling reactions"
+            })
+        
+        # Elemental Mastery variant (for reaction-focused builds)
+        if element_lower in ["anemo", "dendro", "electro"]:
+            variants.append({
+                "name": "Elemental Mastery",
+                "focus": "Reaction damage",
+                "artifacts": ["EM-focused sets", "Reaction damage sets"],
+                "main_stats": {"sands": "EM", "goblet": "EM", "circlet": "EM"},
+                "description": "Maximizes elemental reaction damage"
+            })
         
         return variants
     
@@ -1058,6 +1092,8 @@ Make the recommendations practical and explain the reasoning behind each choice.
         - Bond of Life mechanics understanding
         - Team synergy and reaction analysis
         - Mathematical accuracy for build recommendations
+        - Thorough web search before answering
+        - Complete character data from database
         """
         try:
             # Enhanced Genshin Impact question detection
@@ -1067,13 +1103,15 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     "answer": "I can only help with Genshin Impact related questions. Please ask about characters, builds, teams, artifacts, weapons, or gameplay mechanics.",
                     "context_used": False,
                     "character_data_used": False,
-                    "characters_analyzed": 0
+                    "characters_analyzed": 0,
+                    "web_search_performed": False
                 }
             
             # Get comprehensive user data if UID provided
             player_data = {}
             character_stats = {}
             available_characters = []
+            full_character_data = {}
             
             if uid:
                 try:
@@ -1090,23 +1128,64 @@ Make the recommendations practical and explain the reasoning behind each choice.
                         characters = await CharacterData.get_all_user_characters(uid)
                         character_stats = {}
                         available_characters = []
+                        full_character_data = {}
                         
                         for char in characters:
                             char_name = char.get("name", "Unknown")
                             available_characters.append(char_name)
+                            
+                            # Store full character data for detailed analysis
+                            full_character_data[char_name] = char
+                            
+                            # Create comprehensive character summary
+                            weapon_info = char.get("weapon", {})
+                            artifacts = char.get("artifacts", [])
+                            talents = char.get("talents", [])
+                            stats = char.get("stats", {})
+                            
                             character_stats[char_name] = {
                                 "name": char_name,
-                                "level": char.get("level", 1),
-                                "constellation": char.get("constellation", 0),
+                                "avatarId": char.get("avatarId", 0),
                                 "element": char.get("element", "Unknown"),
-                                "weapon": char.get("weapon", {}).get("name", "Unknown") if char.get("weapon") else "Unknown",
-                                "artifacts": len(char.get("artifacts", [])),
-                                "friendship": char.get("friendship", 1)
+                                "rarity": char.get("rarity", 5),
+                                "level": char.get("level", 1),
+                                "ascension": char.get("ascension", 0),
+                                "constellation": char.get("constellation", 0),
+                                "friendship": char.get("friendship", 1),
+                                "weapon": {
+                                    "name": weapon_info.get("name", "Unknown"),
+                                    "type": weapon_info.get("weaponType", "Unknown"),
+                                    "level": weapon_info.get("level", 1),
+                                    "refinement": weapon_info.get("refinement", 1),
+                                    "rarity": weapon_info.get("rarity", 3),
+                                    "baseAttack": weapon_info.get("baseAttack", 0),
+                                    "subStat": weapon_info.get("subStat", {})
+                                },
+                                "artifacts": {
+                                    "count": len(artifacts),
+                                    "sets": self._analyze_artifact_sets(artifacts),
+                                    "main_stats": self._extract_artifact_main_stats(artifacts)
+                                },
+                                "talents": {
+                                    "count": len([t for t in talents if t.get("type") == "skill"]),
+                                    "levels": self._extract_talent_levels(talents)
+                                },
+                                "stats": {
+                                    "total_hp": stats.get("current_hp", stats.get("max_hp", 0)),
+                                    "total_atk": stats.get("atk", 0) + stats.get("base_atk", 0),
+                                    "total_def": stats.get("def", 0) + stats.get("base_def", 0),
+                                    "crit_rate": stats.get("crit_rate", 5.0),
+                                    "crit_dmg": stats.get("crit_dmg", 50.0),
+                                    "elemental_mastery": stats.get("elemental_mastery", 0),
+                                    "energy_recharge": stats.get("energy_recharge", 100.0),
+                                    "elemental_dmg_bonus": self._get_elemental_dmg_bonus(stats, char.get("element", "Unknown"))
+                                }
                             }
                         
                         # Add character roster summary to player data
                         player_data["available_characters"] = available_characters
                         player_data["character_details"] = character_stats
+                        player_data["full_character_data"] = full_character_data
                         
                 except Exception as e:
                     print(f"Error getting user data: {str(e)}")
@@ -1120,7 +1199,7 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     PLAYER'S AVAILABLE CHARACTERS:
                     {', '.join(available_characters)}
                     
-                    CHARACTER DETAILS:
+                    DETAILED CHARACTER ANALYSIS:
                     {self._json_safe_serialize(character_stats)}
                     
                     TEAM BUILDING INSTRUCTIONS:
@@ -1129,6 +1208,8 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     - If the player doesn't have optimal characters, suggest alternatives from their roster
                     - Explain why each character is chosen and their role in the team
                     - Provide rotation guides and synergy explanations
+                    - Consider character levels, constellations, and weapon quality
+                    - Analyze artifact sets and stat distributions for team synergy
                     """
                 else:
                     team_context = """
@@ -1136,53 +1217,97 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     NOTE: Player's character roster not available. Provide general team recommendations and mention that having specific characters would be ideal.
                     """
             
-            # Search for relevant information (optional enhancement)
+            # ENHANCED WEB SEARCH - Search thoroughly before answering
             search_results = []
+            character_mentioned = None
+            
             try:
                 # Extract character name from question for targeted search
                 question_lower = question.lower()
-                character_mentioned = None
                 
-                # Check if any character name is mentioned in the question
-                all_character_names = [
+                # Get character names dynamically from database if available
+                dynamic_character_names = available_characters if available_characters else []
+                
+                # Fallback character list (only used if no database access)
+                fallback_character_names = [
                     "amber", "kaeya", "lisa", "barbara", "razor", "xiangling", "beidou",
                     "xingqiu", "ningguang", "fischl", "bennett", "noelle", "chongyun",
                     "sucrose", "jean", "diluc", "qiqi", "mona", "keqing", "venti", "klee",
                     "albedo", "rosaria", "eula", "mika", "zhongli", "tartaglia", "childe",
                     "xinyan", "ganyu", "xiao", "hu tao", "hutao", "yanfei", "baizhu", "yaoyao",
-                    "kazuha", "ayaka", "yoimiya", "sayu", "raiden", "kokomi", "gorou", "sara",
-                    "itto", "yae", "heizou", "shinobu", "ayato", "kirara", "tighnari", "collei",
-                    "dori", "nilou", "cyno", "candace", "nahida", "layla", "faruzan", "wanderer",
-                    "alhaitham", "dehya", "kaveh", "lynette", "lyney", "freminet", "neuvillette",
-                    "wriothesley", "charlotte", "furina", "chevreuse", "navia", "gaming", "xianyun",
-                    "chiori", "arlecchino", "sethos", "clorinde", "sigewinne", "emilie",
-                    "kachina", "mualani", "kinich", "xilonen", "chasca", "ororon", "mavuika", "citlali"
+                    "kazuha", "kaedehara kazuha", "ayaka", "kamisato ayaka", "yoimiya",
+                    "sayu", "raiden shogun", "raiden", "ei", "kokomi", "sangonomiya kokomi",
+                    "gorou", "sara", "kujou sara", "itto", "arataki itto", "yae miko",
+                    "yae", "heizou", "shikanoin heizou", "shinobu", "kuki shinobu",
+                    "ayato", "kamisato ayato", "kirara", "tighnari", "collei", "dori", 
+                    "nilou", "cyno", "candace", "nahida", "layla", "faruzan", "wanderer",
+                    "scaramouche", "alhaitham", "dehya", "kaveh", "lynette", "lyney", 
+                    "freminet", "neuvillette", "wriothesley", "charlotte", "furina", 
+                    "chevreuse", "navia", "gaming", "xianyun", "chiori", "arlecchino", 
+                    "sethos", "clorinde", "sigewinne", "emilie", "kachina", "mualani", 
+                    "kinich", "xilonen", "chasca", "ororon", "mavuika", "citlali"
                 ]
                 
+                # Use dynamic character names first, then fallback
+                all_character_names = dynamic_character_names + [name for name in fallback_character_names if name not in dynamic_character_names]
+                
+                # Find mentioned character
                 for char_name in all_character_names:
-                    if char_name in question_lower:
+                    if char_name.lower() in question_lower:
                         character_mentioned = char_name
                         break
                 
-                # Targeted search based on question type
+                # Perform multiple targeted searches for comprehensive information
+                search_queries = []
+                
                 if character_mentioned:
-                    search_query = f"Genshin Impact {character_mentioned} team composition build guide"
+                    # Character-specific searches
+                    search_queries.extend([
+                        f"Genshin Impact {character_mentioned} best team composition 2024",
+                        f"Genshin Impact {character_mentioned} build guide artifacts weapons",
+                        f"Genshin Impact {character_mentioned} meta teams spiral abyss"
+                    ])
                 else:
-                    search_query = f"Genshin Impact {question}"
+                    # General searches based on question content
+                    if any(word in question_lower for word in ["team", "comp", "synergy"]):
+                        search_queries.extend([
+                            f"Genshin Impact {question} team composition guide",
+                            f"Genshin Impact best teams 2024 meta"
+                        ])
+                    elif any(word in question_lower for word in ["build", "artifact", "weapon"]):
+                        search_queries.extend([
+                            f"Genshin Impact {question} build guide",
+                            f"Genshin Impact artifact recommendations 2024"
+                        ])
+                    else:
+                        search_queries.extend([
+                            f"Genshin Impact {question}",
+                            f"Genshin Impact guide {question}"
+                        ])
                 
-                search_response = self.cse_service.list(
-                    q=search_query,
-                    cx=settings.google_cse_id,
-                    num=2  # Reduced for faster response
-                ).execute()
+                # Perform searches (limit to avoid rate limits)
+                for search_query in search_queries[:3]:  # Limit to 3 searches
+                    try:
+                        search_response = self.cse_service.list(
+                            q=search_query,
+                            cx=settings.google_cse_id,
+                            num=3  # Get 3 results per search
+                        ).execute()
+                        
+                        for item in search_response.get("items", []):
+                            search_results.append({
+                                "title": item.get("title", ""),
+                                "snippet": item.get("snippet", ""),
+                                "link": item.get("link", ""),
+                                "source": item.get("displayLink", ""),
+                                "search_query": search_query
+                            })
+                    except Exception as search_error:
+                        print(f"Error in search query '{search_query}': {str(search_error)}")
+                        continue
                 
-                for item in search_response.get("items", []):
-                    search_results.append({
-                        "title": item.get("title", ""),
-                        "snippet": item.get("snippet", "")
-                    })
             except Exception as e:
-                print(f"Error searching: {str(e)}")
+                print(f"Error in web search: {str(e)}")
             
             # Create comprehensive context for the AI
             enhanced_context = f"""
@@ -1195,16 +1320,28 @@ Make the recommendations practical and explain the reasoning behind each choice.
             - Bond of Life mechanics for characters like Arlecchino, Gaming, and Xianyun
             - Team synergy and elemental reaction optimization
             - Character-specific build recommendations with stat targets
+            - Access to player's complete character roster with detailed stats
             
             CURRENT CONTEXT:
             - Question Type: {"Team Composition" if any(phrase in question.lower() for phrase in ["team", "comp", "characters"]) else "General Genshin"}
             - Player Data Available: {"Yes" if uid else "No"}
             - Character Roster Available: {"Yes" if available_characters else "No"}
+            - Characters Available: {len(available_characters)} characters
+            - Web Search Performed: {"Yes" if search_results else "No"}
+            - Search Results Found: {len(search_results)} results
             
             {team_context}
             
-            SEARCH RESULTS (if relevant):
-            {self._json_safe_serialize(search_results) if search_results else "No additional search performed"}
+            COMPREHENSIVE WEB SEARCH RESULTS:
+            {self._json_safe_serialize(search_results) if search_results else "No web search results available"}
+            
+            INSTRUCTIONS:
+            1. Use the web search results to provide up-to-date information
+            2. Prioritize information from reputable Genshin Impact sources
+            3. Combine web search data with player's character roster for personalized advice
+            4. Provide specific, actionable recommendations based on current meta
+            5. Include rotation guides, stat priorities, and team synergies
+            6. Consider character constellations, weapon refinements, and artifact quality
             """
             
             # Generate AI response using the enhanced prompt
@@ -1227,12 +1364,55 @@ Make the recommendations practical and explain the reasoning behind each choice.
                 "character_data_used": uid is not None and bool(character_stats),
                 "characters_analyzed": len(character_stats) if character_stats else 0,
                 "available_characters": available_characters if available_characters else [],
-                "team_context_provided": bool(team_context.strip())
+                "team_context_provided": bool(team_context.strip()),
+                "web_search_performed": bool(search_results),
+                "search_results_count": len(search_results),
+                "character_mentioned": character_mentioned,
+                "search_sources": list(set([result.get("source", "") for result in search_results])) if search_results else []
             }
             
         except Exception as e:
             print(f"Error answering question: {str(e)}")
             raise Exception(f"Failed to answer question: {str(e)}")
+
+    def _analyze_artifact_sets(self, artifacts: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Analyze artifact sets from character data."""
+        set_counts = {}
+        for artifact in artifacts:
+            set_name = artifact.get("setName", "Unknown")
+            if set_name != "Unknown":
+                set_counts[set_name] = set_counts.get(set_name, 0) + 1
+        return set_counts
+
+    def _extract_artifact_main_stats(self, artifacts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Extract main stats from artifacts."""
+        main_stats = {}
+        for artifact in artifacts:
+            artifact_type = artifact.get("type", "unknown")
+            main_stat = artifact.get("mainStat", {})
+            main_stats[artifact_type] = main_stat.get("name", "Unknown")
+        return main_stats
+
+    def _extract_talent_levels(self, talents: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Extract talent levels from character data."""
+        talent_levels = {}
+        skill_count = 0
+        for talent in talents:
+            if talent.get("type") == "skill":
+                skill_count += 1
+                if skill_count == 1:
+                    talent_levels["normal_attack"] = talent.get("level", 1)
+                elif skill_count == 2:
+                    talent_levels["elemental_skill"] = talent.get("level", 1)
+                elif skill_count == 3:
+                    talent_levels["elemental_burst"] = talent.get("level", 1)
+        return talent_levels
+
+    def _get_elemental_dmg_bonus(self, stats: Dict[str, Any], element: str) -> float:
+        """Get elemental damage bonus for the character's element."""
+        element_lower = element.lower()
+        dmg_bonus_key = f"{element_lower}_dmg_bonus"
+        return stats.get(dmg_bonus_key, 0.0)
 
     def _is_genshin_question(self, question: str) -> bool:
         """Check if a question is related to Genshin Impact with comprehensive detection."""
@@ -1251,8 +1431,8 @@ Make the recommendations practical and explain the reasoning behind each choice.
             "archon", "vision", "fatui", "harbinger", "traveler", "paimon"
         ]
         
-        # All Genshin Impact character names (comprehensive list)
-        character_names = [
+        # Comprehensive character names (fallback list - will be supplemented by database data)
+        fallback_character_names = [
             # Mondstadt
             "amber", "kaeya", "lisa", "barbara", "razor", "xiangling", "beidou",
             "xingqiu", "ningguang", "fischl", "bennett", "noelle", "chongyun",
@@ -1319,13 +1499,13 @@ Make the recommendations practical and explain the reasoning behind each choice.
             "freeze team", "melt team", "vape team", "taser", "soup", "bloom team"
         ]
         
-        # Combine all keywords
-        all_keywords = genshin_keywords + character_names + weapon_names + artifact_sets + team_keywords
+        # Combine all keywords (character names will be added dynamically)
+        all_keywords = genshin_keywords + fallback_character_names + weapon_names + artifact_sets + team_keywords
         
         question_lower = question.lower()
         
         # Check for direct keyword matches
-        if any(keyword in question_lower for keyword in all_keywords):
+        if any(keyword.lower() in question_lower for keyword in all_keywords):
             return True
         
         # Check for common Genshin Impact question patterns
@@ -1396,59 +1576,145 @@ Make the recommendations practical and explain the reasoning behind each choice.
             # Get user's available characters if UID provided
             available_characters = []
             character_details = {}
+            full_character_data = {}
             
             if uid:
                 try:
                     from database import CharacterData
                     characters = await CharacterData.get_all_user_characters(uid)
                     available_characters = [char.get("name", "Unknown") for char in characters]
-                    character_details = {
-                        char.get("name", "Unknown"): {
-                            "level": char.get("level", 1),
-                            "constellation": char.get("constellation", 0),
+                    
+                    for char in characters:
+                        char_name = char.get("name", "Unknown")
+                        full_character_data[char_name] = char
+                        
+                        # Create detailed character analysis
+                        weapon_info = char.get("weapon", {})
+                        artifacts = char.get("artifacts", [])
+                        talents = char.get("talents", [])
+                        stats = char.get("stats", {})
+                        
+                        character_details[char_name] = {
+                            "name": char_name,
+                            "avatarId": char.get("avatarId", 0),
                             "element": char.get("element", "Unknown"),
-                            "weapon": char.get("weapon", {}).get("name", "Unknown") if char.get("weapon") else "Unknown"
+                            "rarity": char.get("rarity", 5),
+                            "level": char.get("level", 1),
+                            "ascension": char.get("ascension", 0),
+                            "constellation": char.get("constellation", 0),
+                            "friendship": char.get("friendship", 1),
+                            "weapon": {
+                                "name": weapon_info.get("name", "Unknown"),
+                                "type": weapon_info.get("weaponType", "Unknown"),
+                                "level": weapon_info.get("level", 1),
+                                "refinement": weapon_info.get("refinement", 1),
+                                "rarity": weapon_info.get("rarity", 3),
+                                "baseAttack": weapon_info.get("baseAttack", 0),
+                                "subStat": weapon_info.get("subStat", {})
+                            },
+                            "artifacts": {
+                                "count": len(artifacts),
+                                "sets": self._analyze_artifact_sets(artifacts),
+                                "main_stats": self._extract_artifact_main_stats(artifacts)
+                            },
+                            "talents": {
+                                "count": len([t for t in talents if t.get("type") == "skill"]),
+                                "levels": self._extract_talent_levels(talents)
+                            },
+                            "stats": {
+                                "total_hp": stats.get("current_hp", stats.get("max_hp", 0)),
+                                "total_atk": stats.get("atk", 0) + stats.get("base_atk", 0),
+                                "total_def": stats.get("def", 0) + stats.get("base_def", 0),
+                                "crit_rate": stats.get("crit_rate", 5.0),
+                                "crit_dmg": stats.get("crit_dmg", 50.0),
+                                "elemental_mastery": stats.get("elemental_mastery", 0),
+                                "energy_recharge": stats.get("energy_recharge", 100.0),
+                                "elemental_dmg_bonus": self._get_elemental_dmg_bonus(stats, char.get("element", "Unknown"))
+                            },
+                            "build_quality": self._assess_build_quality(char)
                         }
-                        for char in characters
-                    }
                 except Exception as e:
                     print(f"Error getting character data: {str(e)}")
             
+            # Perform comprehensive web search for team recommendations
+            search_results = []
+            try:
+                search_queries = [
+                    f"Genshin Impact {character_name} best team composition 2024",
+                    f"Genshin Impact {character_name} meta teams spiral abyss",
+                    f"Genshin Impact {character_name} {content_type} team guide"
+                ]
+                
+                for search_query in search_queries:
+                    try:
+                        search_response = self.cse_service.list(
+                            q=search_query,
+                            cx=settings.google_cse_id,
+                            num=3
+                        ).execute()
+                        
+                        for item in search_response.get("items", []):
+                            search_results.append({
+                                "title": item.get("title", ""),
+                                "snippet": item.get("snippet", ""),
+                                "link": item.get("link", ""),
+                                "source": item.get("displayLink", ""),
+                                "search_query": search_query
+                            })
+                    except Exception as search_error:
+                        print(f"Error in search query '{search_query}': {str(search_error)}")
+                        continue
+            except Exception as e:
+                print(f"Error in web search: {str(e)}")
+            
             # Create specialized team building prompt
-            team_prompt = f"""You are a Genshin Impact team composition expert. Provide comprehensive team recommendations for {character_name} as the main character.
+            team_prompt = f"""You are a Genshin Impact team composition expert with access to comprehensive character data and current meta information. Provide detailed team recommendations for {character_name} as the main character.
 
 CHARACTER FOCUS: {character_name}
 CONTENT TYPE: {content_type}
 AVAILABLE CHARACTERS: {', '.join(available_characters) if available_characters else "Provide general recommendations"}
 
-CHARACTER DETAILS:
+COMPREHENSIVE CHARACTER DATABASE:
 {self._json_safe_serialize(character_details) if character_details else "No specific character data available"}
 
+CURRENT META INFORMATION FROM WEB SEARCH:
+{self._json_safe_serialize(search_results) if search_results else "No web search results available"}
+
 TEAM BUILDING REQUIREMENTS:
-1. **Primary Team Options**: Provide 2-3 different team compositions
-2. **Character Roles**: Explain each character's role in the team
-3. **Synergy Analysis**: Explain why these characters work well together
+1. **Primary Team Options**: Provide 3-4 different team compositions using available characters
+2. **Character Roles**: Explain each character's role in the team (DPS, Sub-DPS, Support, Healer, etc.)
+3. **Synergy Analysis**: Explain why these characters work well together (elemental reactions, buffs, etc.)
 4. **Rotation Guide**: Provide basic rotation for each team
 5. **Alternative Options**: If player doesn't have optimal characters, suggest alternatives from their roster
 6. **Content Optimization**: Tailor recommendations for {content_type} content
+7. **Build Analysis**: Consider character levels, constellations, weapons, and artifact sets
+8. **Investment Priority**: Recommend which characters to prioritize for upgrades
 
 TEAM COMPOSITION FORMAT:
 For each team, provide:
-- Team Name/Type (e.g., "Vaporize Team", "Freeze Team")
-- Character List with roles
-- Synergy explanation
-- Basic rotation
-- Pros and cons
-- Investment requirements
+- Team Name/Type (e.g., "Vaporize Team", "Freeze Team", "National Team")
+- Character List with specific roles
+- Synergy explanation with elemental reaction analysis
+- Basic rotation (skill order and timing)
+- Pros and cons for {content_type} content
+- Investment requirements and priorities
+- Alternative character options from available roster
 
-PRIORITIZATION:
+PRIORITIZATION GUIDELINES:
 - Use characters from the player's available roster when possible
-- Explain why each character is chosen
-- Provide budget alternatives if needed
-- Consider constellation requirements
-- Mention weapon and artifact priorities
+- Consider character build quality and investment levels
+- Explain why each character is chosen over alternatives
+- Provide budget alternatives if meta characters aren't available
+- Consider constellation requirements and weapon dependencies
+- Mention artifact set priorities and stat requirements
 
-Provide detailed, practical team recommendations that the player can actually use."""
+CONTENT-SPECIFIC CONSIDERATIONS:
+- For Spiral Abyss: Focus on high DPS, energy management, and survivability
+- For Domains: Consider elemental advantages and shield breaking
+- For Bosses: Emphasize sustained damage and survivability
+- For General: Balance between damage, utility, and ease of use
+
+Provide detailed, practical team recommendations that the player can actually implement with their available characters."""
 
             response = await self.llm.ainvoke([HumanMessage(content=team_prompt)])
             
@@ -1456,18 +1722,109 @@ Provide detailed, practical team recommendations that the player can actually us
                 "character_focus": character_name,
                 "content_type": content_type,
                 "available_characters": available_characters,
+                "character_count": len(available_characters),
                 "team_recommendations": response.content,
                 "personalized": bool(available_characters),
-                "character_count": len(available_characters)
+                "web_search_performed": bool(search_results),
+                "search_results_count": len(search_results),
+                "build_analysis_included": bool(character_details),
+                "meta_information_used": bool(search_results)
             }
             
         except Exception as e:
             print(f"Error getting team recommendations: {str(e)}")
             return {"error": str(e)}
 
+    def _assess_build_quality(self, character_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Assess the build quality of a character based on their stats and equipment."""
+        try:
+            stats = character_data.get("stats", {})
+            weapon = character_data.get("weapon", {})
+            artifacts = character_data.get("artifacts", [])
+            
+            # Calculate crit value
+            crit_rate = stats.get("crit_rate", 5.0)
+            crit_dmg = stats.get("crit_dmg", 50.0)
+            crit_value = crit_rate * 2 + crit_dmg
+            
+            # Assess weapon quality
+            weapon_level = weapon.get("level", 1)
+            weapon_rarity = weapon.get("rarity", 3)
+            weapon_score = (weapon_level / 90) * weapon_rarity * 20
+            
+            # Assess artifact quality
+            artifact_count = len(artifacts)
+            artifact_score = (artifact_count / 5) * 100
+            
+            # Overall build score
+            overall_score = (crit_value * 0.4) + (weapon_score * 0.3) + (artifact_score * 0.3)
+            
+            # Determine build quality rating
+            if overall_score >= 80:
+                quality_rating = "Excellent"
+            elif overall_score >= 60:
+                quality_rating = "Good"
+            elif overall_score >= 40:
+                quality_rating = "Average"
+            else:
+                quality_rating = "Needs Improvement"
+            
+            return {
+                "overall_score": round(overall_score, 1),
+                "quality_rating": quality_rating,
+                "crit_value": round(crit_value, 1),
+                "weapon_score": round(weapon_score, 1),
+                "artifact_score": round(artifact_score, 1),
+                "recommendations": self._get_build_improvement_suggestions(character_data, overall_score)
+            }
+            
+        except Exception as e:
+            print(f"Error assessing build quality: {str(e)}")
+            return {"error": "Could not assess build quality"}
+
+    def _get_build_improvement_suggestions(self, character_data: Dict[str, Any], overall_score: float) -> List[str]:
+        """Get specific suggestions for improving a character's build."""
+        suggestions = []
+        
+        try:
+            stats = character_data.get("stats", {})
+            weapon = character_data.get("weapon", {})
+            artifacts = character_data.get("artifacts", [])
+            
+            # Crit ratio suggestions
+            crit_rate = stats.get("crit_rate", 5.0)
+            crit_dmg = stats.get("crit_dmg", 50.0)
+            crit_ratio = crit_dmg / crit_rate if crit_rate > 0 else 0
+            
+            if crit_ratio > 2.5:
+                suggestions.append("Increase CRIT Rate - current ratio is too high")
+            elif crit_ratio < 1.5:
+                suggestions.append("Increase CRIT DMG - current ratio is too low")
+            
+            if crit_rate < 50:
+                suggestions.append("Aim for 60-70% CRIT Rate for consistency")
+            
+            # Weapon suggestions
+            weapon_level = weapon.get("level", 1)
+            if weapon_level < 80:
+                suggestions.append("Level weapon to 80/90 for significant ATK increase")
+            
+            # Artifact suggestions
+            if len(artifacts) < 5:
+                suggestions.append("Equip all 5 artifact pieces for maximum stats")
+            
+            if overall_score < 60:
+                suggestions.append("Focus on artifact main stats before optimizing substats")
+            
+            return suggestions
+            
+        except Exception as e:
+            print(f"Error generating build suggestions: {str(e)}")
+            return ["Unable to generate specific suggestions"]
+
     async def analyze_team_synergy(self, team_composition: List[str], uid: Optional[int] = None) -> Dict[str, Any]:
         """
-        Analyze the synergy of a given team composition.
+        Analyze the synergy of a given team composition with comprehensive character data.
         
         Args:
             team_composition: List of character names in the team
@@ -1477,64 +1834,164 @@ Provide detailed, practical team recommendations that the player can actually us
             if len(team_composition) < 2 or len(team_composition) > 4:
                 return {"error": "Team must have 2-4 characters"}
             
-            # Get character details if UID provided
+            # Get comprehensive character details if UID provided
             character_builds = {}
+            full_character_data = {}
+            
             if uid:
                 try:
                     from database import CharacterData
                     for char_name in team_composition:
                         char_data = await CharacterData.get_character_by_name(uid, char_name)
                         if char_data:
+                            full_character_data[char_name] = char_data
+                            
+                            # Create detailed character analysis
+                            weapon_info = char_data.get("weapon", {})
+                            artifacts = char_data.get("artifacts", [])
+                            talents = char_data.get("talents", [])
+                            stats = char_data.get("stats", {})
+                            
                             character_builds[char_name] = {
+                                "name": char_name,
+                                "avatarId": char_data.get("avatarId", 0),
+                                "element": char_data.get("element", "Unknown"),
+                                "rarity": char_data.get("rarity", 5),
                                 "level": char_data.get("level", 1),
+                                "ascension": char_data.get("ascension", 0),
                                 "constellation": char_data.get("constellation", 0),
-                                "weapon": char_data.get("weapon", {}),
-                                "artifacts": char_data.get("artifacts", [])
+                                "friendship": char_data.get("friendship", 1),
+                                "weapon": {
+                                    "name": weapon_info.get("name", "Unknown"),
+                                    "type": weapon_info.get("weaponType", "Unknown"),
+                                    "level": weapon_info.get("level", 1),
+                                    "refinement": weapon_info.get("refinement", 1),
+                                    "rarity": weapon_info.get("rarity", 3),
+                                    "baseAttack": weapon_info.get("baseAttack", 0),
+                                    "subStat": weapon_info.get("subStat", {})
+                                },
+                                "artifacts": {
+                                    "count": len(artifacts),
+                                    "sets": self._analyze_artifact_sets(artifacts),
+                                    "main_stats": self._extract_artifact_main_stats(artifacts)
+                                },
+                                "talents": {
+                                    "count": len([t for t in talents if t.get("type") == "skill"]),
+                                    "levels": self._extract_talent_levels(talents)
+                                },
+                                "stats": {
+                                    "total_hp": stats.get("current_hp", stats.get("max_hp", 0)),
+                                    "total_atk": stats.get("atk", 0) + stats.get("base_atk", 0),
+                                    "total_def": stats.get("def", 0) + stats.get("base_def", 0),
+                                    "crit_rate": stats.get("crit_rate", 5.0),
+                                    "crit_dmg": stats.get("crit_dmg", 50.0),
+                                    "elemental_mastery": stats.get("elemental_mastery", 0),
+                                    "energy_recharge": stats.get("energy_recharge", 100.0),
+                                    "elemental_dmg_bonus": self._get_elemental_dmg_bonus(stats, char_data.get("element", "Unknown"))
+                                },
+                                "build_quality": self._assess_build_quality(char_data)
                             }
                 except Exception as e:
                     print(f"Error getting character builds: {str(e)}")
             
-            # Create synergy analysis prompt
-            synergy_prompt = f"""Analyze the team synergy for this Genshin Impact team composition:
+            # Perform web search for team synergy information
+            search_results = []
+            try:
+                team_name = " ".join(team_composition)
+                search_queries = [
+                    f"Genshin Impact {team_name} team synergy analysis",
+                    f"Genshin Impact team composition {' '.join(team_composition[:2])} guide",
+                    f"Genshin Impact meta team analysis 2024"
+                ]
+                
+                for search_query in search_queries:
+                    try:
+                        search_response = self.cse_service.list(
+                            q=search_query,
+                            cx=settings.google_cse_id,
+                            num=2
+                        ).execute()
+                        
+                        for item in search_response.get("items", []):
+                            search_results.append({
+                                "title": item.get("title", ""),
+                                "snippet": item.get("snippet", ""),
+                                "link": item.get("link", ""),
+                                "source": item.get("displayLink", ""),
+                                "search_query": search_query
+                            })
+                    except Exception as search_error:
+                        print(f"Error in search query '{search_query}': {str(search_error)}")
+                        continue
+            except Exception as e:
+                print(f"Error in web search: {str(e)}")
+            
+            # Create comprehensive synergy analysis prompt
+            synergy_prompt = f"""Analyze the team synergy for this Genshin Impact team composition with access to comprehensive character data and current meta information:
 
 TEAM COMPOSITION: {', '.join(team_composition)}
 
-CHARACTER BUILD DATA:
+COMPREHENSIVE CHARACTER BUILD DATA:
 {self._json_safe_serialize(character_builds) if character_builds else "No specific build data available"}
 
+CURRENT META INFORMATION FROM WEB SEARCH:
+{self._json_safe_serialize(search_results) if search_results else "No web search results available"}
+
 ANALYSIS REQUIREMENTS:
-1. **Elemental Synergy**: Analyze elemental reactions and resonance
-2. **Role Distribution**: Evaluate DPS, support, healer, shielder roles
-3. **Energy Management**: Assess energy generation and requirements
-4. **Rotation Flow**: Suggest optimal rotation order
-5. **Strengths**: Identify team's main advantages
-6. **Weaknesses**: Point out potential issues or gaps
-7. **Improvement Suggestions**: Recommend optimizations
+1. **Elemental Synergy**: Analyze elemental reactions, resonance, and elemental coverage
+2. **Role Distribution**: Evaluate DPS, Sub-DPS, support, healer, shielder role balance
+3. **Energy Management**: Assess energy generation, requirements, and particle flow
+4. **Rotation Flow**: Suggest optimal rotation order with skill/burst timing
+5. **Strengths**: Identify team's main advantages and power spikes
+6. **Weaknesses**: Point out potential issues, gaps, or vulnerabilities
+7. **Improvement Suggestions**: Recommend optimizations for builds and gameplay
 8. **Content Suitability**: Rate effectiveness for different content types
+9. **Investment Analysis**: Evaluate current investment levels and priorities
+10. **Meta Relevance**: Compare with current meta teams and alternatives
 
 MATHEMATICAL ANALYSIS:
 - Use damage calculation principles for DPS assessment
-- Consider buff/debuff stacking and duration
-- Evaluate elemental reaction potential
-- Assess survivability and utility
+- Consider buff/debuff stacking, duration, and uptime
+- Evaluate elemental reaction potential and damage multipliers
+- Assess survivability through shields, healing, and damage mitigation
+- Calculate energy requirements and generation efficiency
 
-SCORING:
+SCORING SYSTEM:
 Provide numerical scores (1-10) for:
-- Overall Synergy
-- Damage Potential
-- Survivability
-- Ease of Use
-- Versatility
+- Overall Synergy: How well characters work together
+- Damage Potential: Maximum damage output capability
+- Survivability: Team's ability to survive challenging content
+- Ease of Use: How simple the team is to play effectively
+- Versatility: Effectiveness across different content types
+- Investment Efficiency: Value relative to investment required
 
-Provide a comprehensive analysis that helps the player understand their team's potential and how to optimize it."""
+BUILD QUALITY ASSESSMENT:
+- Analyze individual character build quality and optimization
+- Identify characters that need investment priority
+- Suggest specific artifact, weapon, and talent improvements
+- Consider constellation effects and their impact on team performance
+
+CONTENT-SPECIFIC ANALYSIS:
+- Spiral Abyss: DPS checks, energy management, survivability
+- Domains: Elemental advantages, shield breaking, efficiency
+- Overworld: Exploration utility, resource efficiency, comfort
+- Co-op: Role clarity, support capabilities, team coordination
+
+Provide a comprehensive analysis that helps the player understand their team's potential, current performance level, and specific steps to optimize it."""
 
             response = await self.llm.ainvoke([HumanMessage(content=synergy_prompt)])
             
             return {
                 "team_composition": team_composition,
+                "team_size": len(team_composition),
                 "synergy_analysis": response.content,
                 "character_builds_analyzed": bool(character_builds),
-                "team_size": len(team_composition)
+                "characters_with_data": len(character_builds),
+                "web_search_performed": bool(search_results),
+                "search_results_count": len(search_results),
+                "meta_information_used": bool(search_results),
+                "build_quality_assessed": bool(character_builds),
+                "comprehensive_analysis": True
             }
             
         except Exception as e:
