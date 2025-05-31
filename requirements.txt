@@ -1,7 +1,5 @@
 fastapi
-uvicorn[standard]
-httptools
-uvloop
+uvicorn
 enka
 motor
 pymongo
