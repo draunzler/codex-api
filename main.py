@@ -218,7 +218,7 @@ app.default_response_class = CustomJSONResponse
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,  # Use configurable origins from settings
+    allow_origins=["*"],  # Use configurable origins from settings
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
