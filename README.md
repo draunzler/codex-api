@@ -156,6 +156,8 @@ Once the server is running, visit:
 - `POST /users` - Create a new user profile
 - `GET /users/{uid}` - Get user profile data
 - `PUT /users/{uid}/refresh` - Manually refresh user data
+- `POST /users/{uid}/refresh-force` - Force refresh bypassing cooldown
+- `GET /users/{uid}/refresh-status` - Check refresh progress
 
 #### Characters
 - `GET /characters/setup-instructions` - **NEW!** Get hybrid setup instructions
@@ -178,6 +180,33 @@ Once the server is running, visit:
 #### System
 - `GET /system/scheduler` - Get scheduler status
 - `GET /health` - Health check
+
+#### Character Refresh Behavior
+
+**NEW!** The refresh endpoints now support intelligent character merging:
+
+- **`merge_characters=true` (default)**: Preserves existing characters and adds/updates new ones
+  - ✅ Keeps characters not in current Enka showcase
+  - ✅ Updates existing characters with fresh data
+  - ✅ Adds new characters from showcase
+  - ✅ Perfect for maintaining character history
+
+- **`merge_characters=false`**: Completely replaces character list (legacy behavior)
+  - ⚠️ Removes characters not in current showcase
+  - ⚠️ May lose manually added characters
+  - ✅ Provides clean slate if needed
+
+**Usage Examples:**
+```bash
+# Merge new characters with existing ones (recommended)
+PUT /users/123456789/refresh?merge_characters=true
+
+# Replace all characters with current showcase only
+PUT /users/123456789/refresh?merge_characters=false
+
+# Force refresh with merge
+POST /users/123456789/refresh-force?merge_characters=true
+```
 
 ## Usage Examples
 

@@ -347,10 +347,16 @@ class GenshinClient:
         
         return processed_data
     
-    async def fetch_user_data(self, uid: int) -> Dict[str, Any]:
-        """Fetch user data from Enka Network API."""
+    async def fetch_user_data(self, uid: int, merge_characters: bool = True) -> Dict[str, Any]:
+        """
+        Fetch user data from Enka Network API.
+        
+        Args:
+            uid: User ID to fetch data for
+            merge_characters: Whether to merge new characters with existing ones (True) or replace all (False)
+        """
         try:
-            print(f"Starting data fetch for UID: {uid}")
+            print(f"Starting data fetch for UID: {uid} (merge_characters: {merge_characters})")
             
             if not self.session:
                 self.session = aiohttp.ClientSession()
@@ -364,7 +370,7 @@ class GenshinClient:
                     print(f"Successfully fetched data from Enka Network for UID: {uid}")
                     
                     # Process the response
-                    processed_data = await self._process_enka_response(uid, data)
+                    processed_data = await self._process_enka_response(uid, data, merge_characters)
                     return processed_data
                     
                 elif response.status == 404:
@@ -378,7 +384,7 @@ class GenshinClient:
             print(f"Error fetching user data for UID {uid}: {str(e)}")
             return {"error": str(e)}
     
-    async def _process_enka_response(self, uid: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _process_enka_response(self, uid: int, data: Dict[str, Any], merge_characters: bool) -> Dict[str, Any]:
         """Process Enka Network response and save to database."""
         try:
             # Extract player info
@@ -445,8 +451,8 @@ class GenshinClient:
             # Save all characters
             if processed_characters:
                 try:
-                    await CharacterData.save_all_characters(uid, processed_characters)
-                    print(f"Saved {len(processed_characters)} characters for UID: {uid}")
+                    await CharacterData.save_all_characters(uid, processed_characters, merge_characters)
+                    print(f"Saved {len(processed_characters)} characters for UID: {uid} (merge_characters: {merge_characters})")
                 except Exception as char_error:
                     print(f"Error saving character data: {str(char_error)}")
                     # Continue processing even if character save fails

@@ -297,13 +297,16 @@ async def get_user_profile(uid: int):
 
 
 @app.put("/users/{uid}/refresh", response_model=SuccessResponse, tags=["Users"])
-async def refresh_user_data(uid: int, background_tasks: BackgroundTasks, force: bool = False):
+async def refresh_user_data(uid: int, background_tasks: BackgroundTasks, force: bool = False, merge_characters: bool = True):
     """
     Manually refresh user data from Enka Network.
     
     Args:
         uid: User ID to refresh
         force: Force refresh even if data is recent (default: False)
+        merge_characters: Merge new characters with existing ones instead of replacing (default: True)
+                         - True: Preserves existing characters, updates/adds new ones
+                         - False: Completely replaces character list with new data
         
     Returns:
         Success response with refresh status
@@ -325,13 +328,14 @@ async def refresh_user_data(uid: int, background_tasks: BackgroundTasks, force: 
                     )
         
         # Start background refresh
-        background_tasks.add_task(perform_user_refresh, uid)
+        background_tasks.add_task(perform_user_refresh, uid, merge_characters)
         
         return SuccessResponse(
             message=f"Refresh started for user {uid}. Check /users/{uid}/refresh-status for progress.",
             data={
                 "uid": uid,
                 "refresh_started": True,
+                "merge_characters": merge_characters,
                 "status_endpoint": f"/users/{uid}/refresh-status"
             }
         )
@@ -374,12 +378,13 @@ async def get_refresh_status(uid: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def perform_user_refresh(uid: int):
+async def perform_user_refresh(uid: int, merge_characters: bool = True):
     """
     Background task to perform user data refresh.
     
     Args:
         uid: User ID to refresh
+        merge_characters: Merge new characters with existing ones instead of replacing
     """
     status_key = f"refresh_status_{uid}"
     
@@ -402,7 +407,7 @@ async def perform_user_refresh(uid: int):
         
         # Fetch fresh data using genshin_client directly
         async with genshin_client:
-            fresh_data = await genshin_client.fetch_user_data(uid)
+            fresh_data = await genshin_client.fetch_user_data(uid, merge_characters=merge_characters)
         
         if "error" in fresh_data:
             await Cache.set(status_key, {
@@ -433,13 +438,15 @@ async def perform_user_refresh(uid: int):
         character_count = len(characters)
         
         # Update status: Complete
+        merge_mode = "merged" if merge_characters else "replaced"
         await Cache.set(status_key, {
             "status": "completed",
-            "message": f"Refresh completed successfully. Updated {character_count} characters.",
+            "message": f"Refresh completed successfully. {merge_mode.capitalize()} {character_count} characters.",
             "completed_at": datetime.utcnow().isoformat(),
             "progress": 100,
             "data": {
                 "character_count": character_count,
+                "merge_mode": merge_mode,
                 "nickname": fresh_data.get("player_info", {}).get("nickname", "Unknown"),
                 "level": fresh_data.get("player_info", {}).get("level", 0)
             }
@@ -457,9 +464,15 @@ async def perform_user_refresh(uid: int):
 
 
 @app.post("/users/{uid}/refresh-force", response_model=SuccessResponse, tags=["Users"])
-async def force_refresh_user_data(uid: int, background_tasks: BackgroundTasks):
+async def force_refresh_user_data(uid: int, background_tasks: BackgroundTasks, merge_characters: bool = True):
     """
     Force refresh user data, bypassing cooldown restrictions.
+    
+    Args:
+        uid: User ID to refresh
+        merge_characters: Merge new characters with existing ones instead of replacing (default: True)
+                         - True: Preserves existing characters, updates/adds new ones
+                         - False: Completely replaces character list with new data
     
     Use this when you need to refresh data immediately regardless of when it was last updated.
     """
@@ -469,7 +482,7 @@ async def force_refresh_user_data(uid: int, background_tasks: BackgroundTasks):
             raise HTTPException(status_code=404, detail="User not found")
         
         # Start background refresh with force=True
-        background_tasks.add_task(perform_user_refresh, uid)
+        background_tasks.add_task(perform_user_refresh, uid, merge_characters)
         
         return SuccessResponse(
             message=f"Force refresh started for user {uid}. Check /users/{uid}/refresh-status for progress.",
@@ -477,6 +490,7 @@ async def force_refresh_user_data(uid: int, background_tasks: BackgroundTasks):
                 "uid": uid,
                 "force_refresh": True,
                 "refresh_started": True,
+                "merge_characters": merge_characters,
                 "status_endpoint": f"/users/{uid}/refresh-status"
             }
         )
@@ -1236,13 +1250,20 @@ async def get_api_endpoints_info():
                 "description": "Manually refresh user data from Enka Network (background processing)",
                 "data_source": "Enka Network API",
                 "response_model": "SuccessResponse",
-                "features": ["Background processing", "Progress tracking", "5-minute cooldown", "Force option"]
+                "features": ["Background processing", "Progress tracking", "5-minute cooldown", "Force option", "Character merge/replace option"],
+                "parameters": {
+                    "force": "bool - Force refresh even if data is recent (default: False)",
+                    "merge_characters": "bool - Merge new characters with existing ones instead of replacing (default: True)"
+                }
             },
             "/users/{uid}/refresh-force": {
                 "description": "Force refresh user data, bypassing cooldown restrictions",
                 "data_source": "Enka Network API", 
                 "response_model": "SuccessResponse",
-                "features": ["Bypasses cooldown", "Background processing", "Progress tracking"]
+                "features": ["Bypasses cooldown", "Background processing", "Progress tracking", "Character merge/replace option"],
+                "parameters": {
+                    "merge_characters": "bool - Merge new characters with existing ones instead of replacing (default: True)"
+                }
             },
             "/users/{uid}/refresh-status": {
                 "description": "Get current refresh status and progress",
@@ -1310,7 +1331,21 @@ async def get_api_endpoints_info():
                 "Use regular endpoints for simplified frontend integration",
                 "Raw data preserves all original field names from Enka Network",
                 "Transformed data uses consistent naming for UI components"
-            ]
+            ],
+            "character_refresh_behavior": {
+                "merge_characters=true": [
+                    "Preserves existing characters that aren't in the new data",
+                    "Updates existing characters if they match by avatarId",
+                    "Adds new characters that don't exist yet",
+                    "Ideal for maintaining character history and manual additions"
+                ],
+                "merge_characters=false": [
+                    "Completely replaces the character list with new data",
+                    "Removes any characters not in the current Enka showcase",
+                    "Legacy behavior - use only if you want a clean slate",
+                    "May lose manually added characters or characters not in showcase"
+                ]
+            }
         }
     }
 

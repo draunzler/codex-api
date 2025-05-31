@@ -156,8 +156,118 @@ class CharacterData:
         return character_data
     
     @staticmethod
-    async def save_all_characters(uid: int, characters: List[Dict[str, Any]]) -> bool:
-        """Save all characters for a user (replaces existing characters)."""
+    async def save_all_characters(uid: int, characters: List[Dict[str, Any]], merge_characters: bool = True) -> bool:
+        """
+        Save all characters for a user.
+        
+        Args:
+            uid: User ID
+            characters: List of character data
+            merge_characters: Whether to merge with existing characters (True) or replace all (False)
+        """
+        if merge_characters:
+            return await CharacterData.save_characters_merge(uid, characters)
+        else:
+            return await CharacterData.save_all_characters_replace(uid, characters)
+    
+    @staticmethod
+    async def save_characters_merge(uid: int, new_characters: List[Dict[str, Any]]) -> bool:
+        """
+        Merge new characters with existing ones.
+        - Updates existing characters if they match by avatarId
+        - Adds new characters that don't exist
+        - Preserves existing characters that aren't in the new list
+        """
+        # Add timestamps to all new characters
+        for char in new_characters:
+            char["updated_at"] = datetime.utcnow()
+        
+        # Ensure user exists - use upsert to avoid duplicate key errors
+        user = await UserProfile.get(uid)
+        if not user:
+            # Create user with basic profile data using upsert
+            basic_profile = {
+                "uid": uid, 
+                "nickname": "Unknown",
+                "level": 1,
+                "signature": "",
+                "worldLevel": 0,
+                "nameCardId": 0,
+                "finishAchievementNum": 0,
+                "towerFloorIndex": 0,
+                "towerLevelIndex": 0,
+                "showAvatarInfoList": [],
+                "profilePicture": {},
+                "fetched_at": datetime.utcnow().isoformat()
+            }
+            
+            # Use upsert to avoid duplicate key errors
+            await db.database.users.update_one(
+                {"uid": uid},
+                {
+                    "$setOnInsert": {
+                        "uid": uid,
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow(),
+                        "last_fetch": datetime.utcnow(),
+                        "profile_data": basic_profile,
+                        "characters": [],
+                        "settings": {
+                            "notifications_enabled": True,
+                            "auto_update": True
+                        }
+                    }
+                },
+                upsert=True
+            )
+        
+        # Get existing characters to merge with
+        existing_characters = await CharacterData.get_all_user_characters(uid)
+        existing_avatar_ids = {char.get("avatarId") for char in existing_characters if char.get("avatarId")}
+        
+        # Create a map of new characters by avatarId for easy lookup
+        new_chars_by_id = {char.get("avatarId"): char for char in new_characters if char.get("avatarId")}
+        
+        # Start with existing characters
+        merged_characters = []
+        
+        # Update existing characters if they're in the new list, otherwise keep them as-is
+        for existing_char in existing_characters:
+            avatar_id = existing_char.get("avatarId")
+            if avatar_id in new_chars_by_id:
+                # Update with new data
+                merged_characters.append(new_chars_by_id[avatar_id])
+                print(f"Updated existing character: {existing_char.get('name', 'Unknown')} (ID: {avatar_id})")
+            else:
+                # Keep existing character
+                merged_characters.append(existing_char)
+                print(f"Preserved existing character: {existing_char.get('name', 'Unknown')} (ID: {avatar_id})")
+        
+        # Add completely new characters that don't exist yet
+        for new_char in new_characters:
+            avatar_id = new_char.get("avatarId")
+            if avatar_id not in existing_avatar_ids:
+                merged_characters.append(new_char)
+                print(f"Added new character: {new_char.get('name', 'Unknown')} (ID: {avatar_id})")
+        
+        # Update the characters array with merged data
+        result = await db.database.users.update_one(
+            {"uid": uid},
+            {
+                "$set": {
+                    "characters": merged_characters,
+                    "updated_at": datetime.utcnow(),
+                    "last_fetch": datetime.utcnow()
+                }
+            }
+        )
+        
+        print(f"Character merge completed for UID {uid}: {len(existing_characters)} existing + {len(new_characters)} new = {len(merged_characters)} total")
+        return result.modified_count > 0 or result.upserted_id is not None
+    
+    @staticmethod
+    async def save_all_characters_replace(uid: int, characters: List[Dict[str, Any]]) -> bool:
+        """Save all characters for a user (replaces existing characters - legacy method)."""
         # Add timestamps to all characters
         for char in characters:
             char["updated_at"] = datetime.utcnow()
@@ -200,8 +310,8 @@ class CharacterData:
                 },
                 upsert=True
             )
-        
-        # Update characters array
+
+        # Update characters array (complete replacement)
         result = await db.database.users.update_one(
             {"uid": uid},
             {
