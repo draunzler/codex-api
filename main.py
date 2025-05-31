@@ -1346,6 +1346,68 @@ async def get_api_endpoints_info():
                     "May lose manually added characters or characters not in showcase"
                 ]
             }
+        },
+        "ai_assistant_endpoints": {
+            "/ai/question": {
+                "description": "Ask the AI assistant any Genshin Impact question with enhanced analysis",
+                "data_source": "AI + Database + Google Search",
+                "response_model": "QuestionResponse",
+                "features": ["Enhanced character detection", "Team composition analysis", "Personalized responses", "Mathematical accuracy"],
+                "enhanced_capabilities": [
+                    "Comprehensive character name recognition (all regions)",
+                    "Intelligent question pattern detection",
+                    "Player roster analysis for team building",
+                    "Context-aware responses with character data",
+                    "Specialized team composition assistance"
+                ]
+            },
+            "/ai/team-recommendation": {
+                "description": "Get specialized team recommendations for a specific character",
+                "data_source": "AI + Player Roster + Meta Analysis",
+                "response_model": "TeamRecommendationResponse",
+                "features": ["Personalized team building", "Multiple composition options", "Role analysis", "Rotation guides"],
+                "parameters": {
+                    "character_name": "string - Character to build team around (required)",
+                    "uid": "int - Player UID for personalized recommendations (optional)",
+                    "content_type": "string - Content type: general, abyss, domain, boss (optional)"
+                }
+            },
+            "/ai/team-synergy": {
+                "description": "Analyze synergy and effectiveness of a team composition",
+                "data_source": "AI + Character Builds + Mathematical Analysis",
+                "response_model": "TeamSynergyResponse", 
+                "features": ["Elemental reaction analysis", "Role distribution evaluation", "Numerical scoring", "Optimization suggestions"],
+                "parameters": {
+                    "team_composition": "array - List of 2-4 character names (required)",
+                    "uid": "int - Player UID for build-specific analysis (optional)"
+                }
+            },
+            "/ai/character-analysis": {
+                "description": "Comprehensive character analysis with mathematical formulas",
+                "data_source": "AI + Damage Calculators + Build Analysis",
+                "response_model": "CharacterAnalysisResponse",
+                "features": ["Mathematical damage calculations", "Build efficiency scoring", "Investment priorities", "Action plans"]
+            },
+            "/ai/build-recommendation": {
+                "description": "Get AI-powered build recommendations with damage analysis",
+                "data_source": "AI + Google Search + Mathematical Analysis",
+                "response_model": "BuildRecommendationResponse",
+                "features": ["Meta build analysis", "Artifact optimization", "Weapon recommendations", "Investment guidance"]
+            }
+        },
+        "damage_calculator_endpoints": {
+            "/damage/character": {
+                "description": "Calculate damage for a single character without team buffs",
+                "data_source": "Mathematical Engine + Character Database",
+                "response_model": "SimpleDamageResponse",
+                "features": ["Real game formulas", "Universal character support", "Precise calculations", "Build analysis"]
+            },
+            "/damage/team": {
+                "description": "Calculate team damage with buffs and elemental reactions",
+                "data_source": "Mathematical Engine + Team Analysis + Character Database",
+                "response_model": "TeamDamageResponse",
+                "features": ["Auto reaction detection", "Team buff analysis", "Rotation optimization", "Synergy scoring"]
+            }
         }
     }
 
@@ -2013,6 +2075,83 @@ async def get_bond_of_life_info():
     except Exception as e:
         logger.error(f"Error getting Bond of Life info: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error getting Bond of Life info: {str(e)}")
+
+@app.post("/ai/team-recommendation", tags=["AI Assistant"])
+async def get_team_recommendation_endpoint(request: Dict[str, Any]):
+    """
+    Get specialized team recommendations for a specific character.
+    
+    **Enhanced Team Building Assistant:**
+    - Analyzes player's available character roster
+    - Provides multiple team composition options
+    - Explains character roles and synergies
+    - Includes rotation guides and investment priorities
+    - Tailored for different content types (Abyss, domains, bosses)
+    
+    Perfect for questions like "give me a good team for Chasca" or "best team comp for Spiral Abyss".
+    """
+    try:
+        # Validate request
+        if "character_name" not in request:
+            raise HTTPException(status_code=400, detail="character_name is required")
+        
+        character_name = request["character_name"]
+        uid = request.get("uid")
+        content_type = request.get("content_type", "general")
+        
+        # Get team recommendations using enhanced AI assistant
+        result = await ai_assistant.get_team_recommendation(character_name, uid, content_type)
+        
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in team recommendation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Team recommendation failed: {str(e)}")
+
+
+@app.post("/ai/team-synergy", tags=["AI Assistant"])
+async def analyze_team_synergy_endpoint(request: Dict[str, Any]):
+    """
+    Analyze the synergy and effectiveness of a team composition.
+    
+    **Comprehensive Team Analysis:**
+    - Evaluates elemental reactions and resonance
+    - Assesses role distribution and energy management
+    - Provides rotation guides and optimization tips
+    - Scores team effectiveness across multiple criteria
+    - Identifies strengths, weaknesses, and improvement areas
+    
+    Perfect for analyzing existing teams or comparing different compositions.
+    """
+    try:
+        # Validate request
+        if "team_composition" not in request:
+            raise HTTPException(status_code=400, detail="team_composition is required")
+        
+        team_composition = request["team_composition"]
+        uid = request.get("uid")
+        
+        if not isinstance(team_composition, list) or len(team_composition) < 2 or len(team_composition) > 4:
+            raise HTTPException(status_code=400, detail="team_composition must be a list of 2-4 character names")
+        
+        # Analyze team synergy using enhanced AI assistant
+        result = await ai_assistant.analyze_team_synergy(team_composition, uid)
+        
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in team synergy analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Team synergy analysis failed: {str(e)}")
 
 
 if __name__ == "__main__":

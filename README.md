@@ -171,10 +171,11 @@ Once the server is running, visit:
 - `GET /users/{uid}/exploration` - Get exploration progress for all regions
 
 #### AI Assistant
-- `POST /ai/analyze-character` - **NEW!** Advanced character analysis using mathematical formulas
-- `POST /ai/damage-calculation` - Calculate character damage
-- `POST /ai/build-recommendation` - Get build recommendations
-- `POST /ai/question` - Ask general questions
+- `POST /ai/character-analysis` - **NEW!** Advanced character analysis using mathematical formulas
+- `POST /ai/team-recommendation` - **NEW!** Specialized team recommendations for any character
+- `POST /ai/team-synergy` - **NEW!** Analyze team composition synergy and effectiveness
+- `POST /ai/question` - **ENHANCED!** Ask any Genshin question with intelligent character detection
+- `POST /ai/build-recommendation` - Get build recommendations with damage analysis
 - `POST /ai/farming-route` - Get farming route optimization
 
 #### System
@@ -334,6 +335,53 @@ curl -X POST "http://localhost:8000/ai/analyze-character" \
   ]
 }
 ```
+
+### 🆕 Enhanced Team Composition Assistant
+
+**Perfect for questions like "among the characters that I have, give me a good team for Chasca":**
+
+```bash
+# Get personalized team recommendations
+curl -X POST "http://localhost:8000/ai/team-recommendation" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "character_name": "Chasca",
+       "uid": 123456789,
+       "content_type": "abyss"
+     }'
+
+# Ask natural language questions
+curl -X POST "http://localhost:8000/ai/question" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "question": "among the characters that I have, give me a good team for chasca",
+       "uid": 123456789,
+       "include_context": true
+     }'
+
+# Analyze existing team synergy
+curl -X POST "http://localhost:8000/ai/team-synergy" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "team_composition": ["Chasca", "Bennett", "Xiangling", "Kazuha"],
+       "uid": 123456789
+     }'
+```
+
+**What you get:**
+- **Personalized team recommendations** using YOUR available characters
+- **Multiple team options** (meta, budget, fun alternatives)
+- **Detailed role explanations** and synergy analysis
+- **Rotation guides** and gameplay tips
+- **Investment priorities** and optimization suggestions
+- **Content-specific recommendations** (Abyss, domains, bosses)
+
+**Enhanced AI Understanding:**
+- ✅ Recognizes ALL character names (Mondstadt to Natlan)
+- ✅ Understands team composition terminology
+- ✅ Analyzes your character roster automatically
+- ✅ Provides practical, actionable advice
+- ✅ No more "I can only help with Genshin Impact questions" errors!
 
 ### Getting Damage Calculation
 
@@ -495,3 +543,9 @@ For issues and questions:
 - [ ] Integration with more Genshin Impact tools
 - [ ] Mobile app support
 - [ ] Multi-language support 
+
+**🆕 Enhanced AI Features:**
+- **Intelligent Question Detection**: Recognizes ALL character names and Genshin terminology
+- **Team Composition Expert**: Analyzes your roster for optimal team building
+- **Personalized Recommendations**: Uses your available characters for practical advice
+- **Mathematical Accuracy**: Powered by real damage calculation formulas 

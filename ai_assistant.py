@@ -74,30 +74,63 @@ class GenshinAIAssistant:
         
         Provide comprehensive build recommendations."""
         
-        self.general_assistant_prompt = """You are a helpful Genshin Impact assistant with access to the player's account data.
+        self.general_assistant_prompt = """You are a comprehensive Genshin Impact assistant with deep knowledge of all characters, team compositions, and game mechanics.
 
-        STRICT GUIDELINES:
-        1. ONLY answer questions related to Genshin Impact
-        2. If a question is not about Genshin Impact, politely redirect: "I can only help with Genshin Impact related questions. Please ask about characters, builds, teams, artifacts, weapons, or gameplay mechanics."
-        3. You have access to the player's character data including stats, builds, and artifacts
-        4. Provide helpful, accurate, and detailed responses about:
-           - Character builds and optimization
-           - Team compositions and synergies
-           - Artifact recommendations
-           - Weapon suggestions
+        CORE IDENTITY:
+        - You are a Genshin Impact expert with complete knowledge of all characters, weapons, artifacts, and game mechanics
+        - You have access to the player's character roster and can provide personalized recommendations
+        - You understand team synergies, elemental reactions, and optimal builds for all characters
+        - You can analyze the player's available characters and suggest optimal team compositions
+
+        ENHANCED CAPABILITIES:
+        1. **Character Knowledge**: Complete understanding of all Genshin Impact characters including:
+           - All released characters from Mondstadt, Liyue, Inazuma, Sumeru, Fontaine, and Natlan
+           - Character abilities, elements, weapon types, and roles
+           - Optimal builds, artifact sets, and weapon recommendations
+           - Constellation effects and investment priorities
+
+        2. **Team Composition Expertise**: 
+           - Analyze player's available characters for optimal team building
+           - Understand character synergies and elemental reactions
+           - Recommend teams for different content (Spiral Abyss, overworld, domains)
+           - Consider character roles (DPS, support, healer, shielder, buffer)
+
+        3. **Mathematical Analysis**: Access to damage calculation systems and build optimization
+
+        QUESTION HANDLING:
+        - ALWAYS assume questions are about Genshin Impact unless explicitly stated otherwise
+        - For team composition questions, analyze the player's available characters
+        - Provide detailed explanations for recommendations
+        - Consider multiple team options and explain trade-offs
+        - Include rotation guides and gameplay tips
+
+        RESPONSE GUIDELINES:
+        1. **Team Composition Questions**: When asked about teams for a specific character:
+           - Analyze the player's roster if available
+           - Suggest multiple team options (meta, budget, fun alternatives)
+           - Explain character roles and synergies
+           - Provide rotation guides
+           - Consider different content types
+
+        2. **Character Questions**: Provide comprehensive information about:
+           - Optimal builds and artifacts
+           - Weapon recommendations by rarity
            - Talent priorities
-           - Farming routes and material locations
-           - Event information and strategies
-           - Exploration tips and puzzle solutions
-           - Combat mechanics and elemental reactions
-           - Spiral Abyss strategies
+           - Team synergies
+           - Investment advice
 
+        3. **General Gameplay**: Help with:
+           - Spiral Abyss strategies
+           - Farming routes and priorities
+           - Event guides and tips
+           - Exploration and puzzle solutions
+
+        CONTEXT DATA:
         Player Data: {player_data}
         Character Stats: {character_stats}
         Question: {question}
-        
-        If the question is not about Genshin Impact, respond with the redirect message above.
-        Otherwise, provide a comprehensive and helpful response using the player's data when relevant."""
+
+        IMPORTANT: Always provide helpful, detailed responses about Genshin Impact. If the question mentions character names, team building, or game mechanics, treat it as a valid Genshin Impact question and provide comprehensive assistance."""
     
     def _json_safe_serialize(self, data: Any) -> str:
         """Safely serialize data to JSON, converting datetime objects and ObjectId to ISO strings."""
@@ -1027,7 +1060,7 @@ Make the recommendations practical and explain the reasoning behind each choice.
         - Mathematical accuracy for build recommendations
         """
         try:
-            # Check if question is Genshin Impact related
+            # Enhanced Genshin Impact question detection
             if not self._is_genshin_question(question):
                 return {
                     "question": question,
@@ -1037,9 +1070,10 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     "characters_analyzed": 0
                 }
             
-            # Get user data if UID provided
+            # Get comprehensive user data if UID provided
             player_data = {}
             character_stats = {}
+            available_characters = []
             
             if uid:
                 try:
@@ -1048,60 +1082,132 @@ Make the recommendations practical and explain the reasoning behind each choice.
                     if user:
                         player_data = {
                             "profile": user.get("profile_data", {}),
-                            "character_count": len(user.get("characters", []))
+                            "character_count": len(user.get("characters", [])),
+                            "uid": uid
                         }
                         
-                        # Get character data for context
+                        # Get comprehensive character data for context
                         characters = await CharacterData.get_all_user_characters(uid)
-                        character_stats = {
-                            char.get("name", "Unknown"): {
+                        character_stats = {}
+                        available_characters = []
+                        
+                        for char in characters:
+                            char_name = char.get("name", "Unknown")
+                            available_characters.append(char_name)
+                            character_stats[char_name] = {
+                                "name": char_name,
                                 "level": char.get("level", 1),
                                 "constellation": char.get("constellation", 0),
-                                "element": char.get("element", "Unknown")
+                                "element": char.get("element", "Unknown"),
+                                "weapon": char.get("weapon", {}).get("name", "Unknown") if char.get("weapon") else "Unknown",
+                                "artifacts": len(char.get("artifacts", [])),
+                                "friendship": char.get("friendship", 1)
                             }
-                            for char in characters[:5]  # Limit to 5 for context
-                        }
+                        
+                        # Add character roster summary to player data
+                        player_data["available_characters"] = available_characters
+                        player_data["character_details"] = character_stats
+                        
                 except Exception as e:
                     print(f"Error getting user data: {str(e)}")
             
-            # Search for relevant information
+            # Enhanced context for team composition questions
+            team_context = ""
+            if any(phrase in question.lower() for phrase in ["team for", "good team", "team comp", "characters i have", "among the characters"]):
+                if available_characters:
+                    team_context = f"""
+                    
+                    PLAYER'S AVAILABLE CHARACTERS:
+                    {', '.join(available_characters)}
+                    
+                    CHARACTER DETAILS:
+                    {self._json_safe_serialize(character_stats)}
+                    
+                    TEAM BUILDING INSTRUCTIONS:
+                    - Prioritize characters from the player's roster
+                    - Suggest multiple team options using available characters
+                    - If the player doesn't have optimal characters, suggest alternatives from their roster
+                    - Explain why each character is chosen and their role in the team
+                    - Provide rotation guides and synergy explanations
+                    """
+                else:
+                    team_context = """
+                    
+                    NOTE: Player's character roster not available. Provide general team recommendations and mention that having specific characters would be ideal.
+                    """
+            
+            # Search for relevant information (optional enhancement)
             search_results = []
             try:
-                search_query = f"Genshin Impact {question}"
+                # Extract character name from question for targeted search
+                question_lower = question.lower()
+                character_mentioned = None
+                
+                # Check if any character name is mentioned in the question
+                all_character_names = [
+                    "amber", "kaeya", "lisa", "barbara", "razor", "xiangling", "beidou",
+                    "xingqiu", "ningguang", "fischl", "bennett", "noelle", "chongyun",
+                    "sucrose", "jean", "diluc", "qiqi", "mona", "keqing", "venti", "klee",
+                    "albedo", "rosaria", "eula", "mika", "zhongli", "tartaglia", "childe",
+                    "xinyan", "ganyu", "xiao", "hu tao", "hutao", "yanfei", "baizhu", "yaoyao",
+                    "kazuha", "ayaka", "yoimiya", "sayu", "raiden", "kokomi", "gorou", "sara",
+                    "itto", "yae", "heizou", "shinobu", "ayato", "kirara", "tighnari", "collei",
+                    "dori", "nilou", "cyno", "candace", "nahida", "layla", "faruzan", "wanderer",
+                    "alhaitham", "dehya", "kaveh", "lynette", "lyney", "freminet", "neuvillette",
+                    "wriothesley", "charlotte", "furina", "chevreuse", "navia", "gaming", "xianyun",
+                    "chiori", "arlecchino", "sethos", "clorinde", "sigewinne", "emilie",
+                    "kachina", "mualani", "kinich", "xilonen", "chasca", "ororon", "mavuika", "citlali"
+                ]
+                
+                for char_name in all_character_names:
+                    if char_name in question_lower:
+                        character_mentioned = char_name
+                        break
+                
+                # Targeted search based on question type
+                if character_mentioned:
+                    search_query = f"Genshin Impact {character_mentioned} team composition build guide"
+                else:
+                    search_query = f"Genshin Impact {question}"
+                
                 search_response = self.cse_service.list(
                     q=search_query,
                     cx=settings.google_cse_id,
-                    num=3
+                    num=2  # Reduced for faster response
                 ).execute()
                 
                 for item in search_response.get("items", []):
                     search_results.append({
                         "title": item.get("title", ""),
-                        "link": item.get("link", ""),
                         "snippet": item.get("snippet", "")
                     })
             except Exception as e:
                 print(f"Error searching: {str(e)}")
             
-            # Create enhanced prompt with damage calculator context
-            enhanced_context = """
-            You have access to comprehensive Genshin Impact analysis systems including:
-            - Mathematical damage calculators using actual game formulas
-            - Artifact set bonus analysis and recommendations
+            # Create comprehensive context for the AI
+            enhanced_context = f"""
+            You are a comprehensive Genshin Impact expert with access to mathematical damage calculators, 
+            artifact analysis systems, and complete knowledge of all characters and team compositions.
+            
+            SPECIAL CAPABILITIES:
+            - Mathematical damage calculations using actual game formulas
+            - Artifact set bonus analysis and optimization
             - Bond of Life mechanics for characters like Arlecchino, Gaming, and Xianyun
             - Team synergy and elemental reaction optimization
-            - Character-specific stat targets and build variants
+            - Character-specific build recommendations with stat targets
             
-            Use this knowledge to provide accurate, detailed responses about:
-            - Character builds and optimization
-            - Team compositions and synergies
-            - Artifact recommendations with mathematical backing
-            - Weapon suggestions and comparisons
-            - Talent priorities and investment guidance
-            - Combat mechanics and elemental reactions
+            CURRENT CONTEXT:
+            - Question Type: {"Team Composition" if any(phrase in question.lower() for phrase in ["team", "comp", "characters"]) else "General Genshin"}
+            - Player Data Available: {"Yes" if uid else "No"}
+            - Character Roster Available: {"Yes" if available_characters else "No"}
+            
+            {team_context}
+            
+            SEARCH RESULTS (if relevant):
+            {self._json_safe_serialize(search_results) if search_results else "No additional search performed"}
             """
             
-            # Generate AI response using the general assistant prompt
+            # Generate AI response using the enhanced prompt
             prompt_template = ChatPromptTemplate.from_template(self.general_assistant_prompt)
             formatted_prompt = prompt_template.format(
                 player_data=self._json_safe_serialize(player_data),
@@ -1109,7 +1215,7 @@ Make the recommendations practical and explain the reasoning behind each choice.
                 question=question
             )
             
-            # Add enhanced context
+            # Combine enhanced context with formatted prompt
             full_prompt = f"{enhanced_context}\n\n{formatted_prompt}"
             
             response = await self.llm.ainvoke([HumanMessage(content=full_prompt)])
@@ -1119,7 +1225,9 @@ Make the recommendations practical and explain the reasoning behind each choice.
                 "answer": response.content,
                 "context_used": uid is not None and bool(player_data),
                 "character_data_used": uid is not None and bool(character_stats),
-                "characters_analyzed": len(character_stats) if character_stats else 0
+                "characters_analyzed": len(character_stats) if character_stats else 0,
+                "available_characters": available_characters if available_characters else [],
+                "team_context_provided": bool(team_context.strip())
             }
             
         except Exception as e:
@@ -1127,7 +1235,9 @@ Make the recommendations practical and explain the reasoning behind each choice.
             raise Exception(f"Failed to answer question: {str(e)}")
 
     def _is_genshin_question(self, question: str) -> bool:
-        """Check if a question is related to Genshin Impact."""
+        """Check if a question is related to Genshin Impact with comprehensive detection."""
+        
+        # Basic Genshin Impact keywords
         genshin_keywords = [
             "genshin", "character", "artifact", "weapon", "team", "build", "damage",
             "element", "reaction", "talent", "constellation", "ascension", "material",
@@ -1136,11 +1246,300 @@ Make the recommendations practical and explain the reasoning behind each choice.
             "vaporize", "melt", "freeze", "electro-charged", "overloaded", "superconduct",
             "swirl", "crystallize", "burning", "bloom", "hyperbloom", "burgeon", "quicken",
             "aggravate", "spread", "crit", "atk", "def", "hp", "em", "er", "healing",
-            "shield", "burst", "skill", "normal attack", "charged attack", "plunge"
+            "shield", "burst", "skill", "normal attack", "charged attack", "plunge",
+            "teyvat", "mondstadt", "liyue", "inazuma", "sumeru", "fontaine", "natlan",
+            "archon", "vision", "fatui", "harbinger", "traveler", "paimon"
         ]
         
+        # All Genshin Impact character names (comprehensive list)
+        character_names = [
+            # Mondstadt
+            "amber", "kaeya", "lisa", "barbara", "razor", "xiangling", "beidou",
+            "xingqiu", "ningguang", "fischl", "bennett", "noelle", "chongyun",
+            "sucrose", "jean", "diluc", "qiqi", "mona", "keqing", "venti", "klee",
+            "albedo", "rosaria", "eula", "mika",
+            
+            # Liyue
+            "zhongli", "tartaglia", "childe", "xinyan", "ganyu", "xiao", "hu tao",
+            "hutao", "yanfei", "baizhu", "yaoyao",
+            
+            # Inazuma
+            "kazuha", "kaedehara kazuha", "ayaka", "kamisato ayaka", "yoimiya",
+            "sayu", "raiden shogun", "raiden", "ei", "kokomi", "sangonomiya kokomi",
+            "gorou", "sara", "kujou sara", "itto", "arataki itto", "yae miko",
+            "yae", "heizou", "shikanoin heizou", "shinobu", "kuki shinobu",
+            "ayato", "kamisato ayato", "kirara",
+            
+            # Sumeru
+            "tighnari", "collei", "dori", "nilou", "cyno", "candace", "nahida",
+            "layla", "faruzan", "wanderer", "scaramouche", "alhaitham", "dehya",
+            "kaveh",
+            
+            # Fontaine
+            "lynette", "lyney", "freminet", "neuvillette", "wriothesley",
+            "charlotte", "furina", "chevreuse", "navia", "gaming", "xianyun",
+            "chiori", "arlecchino", "sethos", "clorinde", "sigewinne", "emilie",
+            
+            # Natlan
+            "kachina", "mualani", "kinich", "xilonen", "chasca", "ororon",
+            "mavuika", "citlali", "lan yan", "lanyan",
+            
+            # Other/Special
+            "aloy", "traveler", "aether", "lumine"
+        ]
+        
+        # Weapon names (common ones)
+        weapon_names = [
+            "skyward", "primordial", "staff of homa", "homa", "mistsplitter",
+            "thundering pulse", "polar star", "redhorn", "itto weapon",
+            "freedom sworn", "elegy", "aqua simulacra", "hunter's path",
+            "key of khaj-nisut", "light of foliar incision", "baizhu weapon",
+            "tome of eternal flow", "cashflow supervision", "crane's echoing call",
+            "uraku misugiri", "absolution", "peak patrol song"
+        ]
+        
+        # Artifact set names
+        artifact_sets = [
+            "gladiator", "wanderer", "noblesse", "bloodstained", "viridescent",
+            "maiden beloved", "thundering fury", "thundersoother", "lavawalker",
+            "crimson witch", "blizzard strayer", "heart of depth", "tenacity",
+            "pale flame", "shimenawa", "emblem", "husk", "ocean hued clam",
+            "vermillion hereafter", "echoes", "deepwood", "gilded dreams",
+            "flower of paradise", "desert pavilion", "vourukasha", "marechaussee",
+            "golden troupe", "song of days past", "nighttime whispers",
+            "fragment of harmonic whimsy", "unfinished reverie", "scroll of hero",
+            "obsidian codex"
+        ]
+        
+        # Team composition keywords
+        team_keywords = [
+            "team comp", "team composition", "synergy", "support", "dps", "sub dps",
+            "healer", "shielder", "buffer", "debuffer", "enabler", "driver",
+            "hypercarry", "quickswap", "rotation", "national team", "international",
+            "freeze team", "melt team", "vape team", "taser", "soup", "bloom team"
+        ]
+        
+        # Combine all keywords
+        all_keywords = genshin_keywords + character_names + weapon_names + artifact_sets + team_keywords
+        
         question_lower = question.lower()
-        return any(keyword in question_lower for keyword in genshin_keywords)
+        
+        # Check for direct keyword matches
+        if any(keyword in question_lower for keyword in all_keywords):
+            return True
+        
+        # Check for common Genshin Impact question patterns
+        genshin_patterns = [
+            "good team for",
+            "best build for",
+            "which character",
+            "who should i",
+            "what artifact",
+            "which weapon",
+            "team recommendation",
+            "build guide",
+            "talent priority",
+            "constellation worth",
+            "should i pull",
+            "is it worth",
+            "farming route",
+            "material farm",
+            "spiral abyss",
+            "floor 12",
+            "36 star",
+            "damage calculation",
+            "crit ratio",
+            "stat priority",
+            "investment priority",
+            "characters i have",
+            "my characters",
+            "roster",
+            "pull for",
+            "skip banner",
+            "meta team",
+            "f2p friendly",
+            "low investment"
+        ]
+        
+        # Check for pattern matches
+        if any(pattern in question_lower for pattern in genshin_patterns):
+            return True
+        
+        # Additional context clues that suggest Genshin Impact
+        context_clues = [
+            "among the characters",
+            "characters that i have",
+            "my roster",
+            "team for",
+            "good with",
+            "synergizes with",
+            "works well with",
+            "best support for",
+            "who pairs with"
+        ]
+        
+        if any(clue in question_lower for clue in context_clues):
+            return True
+        
+        return False
+
+    async def get_team_recommendation(self, character_name: str, uid: Optional[int] = None, content_type: str = "general") -> Dict[str, Any]:
+        """
+        Get specialized team recommendations for a specific character.
+        
+        Args:
+            character_name: The main character to build a team around
+            uid: User ID to get available characters
+            content_type: Type of content (general, abyss, domain, boss)
+        """
+        try:
+            # Get user's available characters if UID provided
+            available_characters = []
+            character_details = {}
+            
+            if uid:
+                try:
+                    from database import CharacterData
+                    characters = await CharacterData.get_all_user_characters(uid)
+                    available_characters = [char.get("name", "Unknown") for char in characters]
+                    character_details = {
+                        char.get("name", "Unknown"): {
+                            "level": char.get("level", 1),
+                            "constellation": char.get("constellation", 0),
+                            "element": char.get("element", "Unknown"),
+                            "weapon": char.get("weapon", {}).get("name", "Unknown") if char.get("weapon") else "Unknown"
+                        }
+                        for char in characters
+                    }
+                except Exception as e:
+                    print(f"Error getting character data: {str(e)}")
+            
+            # Create specialized team building prompt
+            team_prompt = f"""You are a Genshin Impact team composition expert. Provide comprehensive team recommendations for {character_name} as the main character.
+
+CHARACTER FOCUS: {character_name}
+CONTENT TYPE: {content_type}
+AVAILABLE CHARACTERS: {', '.join(available_characters) if available_characters else "Provide general recommendations"}
+
+CHARACTER DETAILS:
+{self._json_safe_serialize(character_details) if character_details else "No specific character data available"}
+
+TEAM BUILDING REQUIREMENTS:
+1. **Primary Team Options**: Provide 2-3 different team compositions
+2. **Character Roles**: Explain each character's role in the team
+3. **Synergy Analysis**: Explain why these characters work well together
+4. **Rotation Guide**: Provide basic rotation for each team
+5. **Alternative Options**: If player doesn't have optimal characters, suggest alternatives from their roster
+6. **Content Optimization**: Tailor recommendations for {content_type} content
+
+TEAM COMPOSITION FORMAT:
+For each team, provide:
+- Team Name/Type (e.g., "Vaporize Team", "Freeze Team")
+- Character List with roles
+- Synergy explanation
+- Basic rotation
+- Pros and cons
+- Investment requirements
+
+PRIORITIZATION:
+- Use characters from the player's available roster when possible
+- Explain why each character is chosen
+- Provide budget alternatives if needed
+- Consider constellation requirements
+- Mention weapon and artifact priorities
+
+Provide detailed, practical team recommendations that the player can actually use."""
+
+            response = await self.llm.ainvoke([HumanMessage(content=team_prompt)])
+            
+            return {
+                "character_focus": character_name,
+                "content_type": content_type,
+                "available_characters": available_characters,
+                "team_recommendations": response.content,
+                "personalized": bool(available_characters),
+                "character_count": len(available_characters)
+            }
+            
+        except Exception as e:
+            print(f"Error getting team recommendations: {str(e)}")
+            return {"error": str(e)}
+
+    async def analyze_team_synergy(self, team_composition: List[str], uid: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Analyze the synergy of a given team composition.
+        
+        Args:
+            team_composition: List of character names in the team
+            uid: User ID to get character build details
+        """
+        try:
+            if len(team_composition) < 2 or len(team_composition) > 4:
+                return {"error": "Team must have 2-4 characters"}
+            
+            # Get character details if UID provided
+            character_builds = {}
+            if uid:
+                try:
+                    from database import CharacterData
+                    for char_name in team_composition:
+                        char_data = await CharacterData.get_character_by_name(uid, char_name)
+                        if char_data:
+                            character_builds[char_name] = {
+                                "level": char_data.get("level", 1),
+                                "constellation": char_data.get("constellation", 0),
+                                "weapon": char_data.get("weapon", {}),
+                                "artifacts": char_data.get("artifacts", [])
+                            }
+                except Exception as e:
+                    print(f"Error getting character builds: {str(e)}")
+            
+            # Create synergy analysis prompt
+            synergy_prompt = f"""Analyze the team synergy for this Genshin Impact team composition:
+
+TEAM COMPOSITION: {', '.join(team_composition)}
+
+CHARACTER BUILD DATA:
+{self._json_safe_serialize(character_builds) if character_builds else "No specific build data available"}
+
+ANALYSIS REQUIREMENTS:
+1. **Elemental Synergy**: Analyze elemental reactions and resonance
+2. **Role Distribution**: Evaluate DPS, support, healer, shielder roles
+3. **Energy Management**: Assess energy generation and requirements
+4. **Rotation Flow**: Suggest optimal rotation order
+5. **Strengths**: Identify team's main advantages
+6. **Weaknesses**: Point out potential issues or gaps
+7. **Improvement Suggestions**: Recommend optimizations
+8. **Content Suitability**: Rate effectiveness for different content types
+
+MATHEMATICAL ANALYSIS:
+- Use damage calculation principles for DPS assessment
+- Consider buff/debuff stacking and duration
+- Evaluate elemental reaction potential
+- Assess survivability and utility
+
+SCORING:
+Provide numerical scores (1-10) for:
+- Overall Synergy
+- Damage Potential
+- Survivability
+- Ease of Use
+- Versatility
+
+Provide a comprehensive analysis that helps the player understand their team's potential and how to optimize it."""
+
+            response = await self.llm.ainvoke([HumanMessage(content=synergy_prompt)])
+            
+            return {
+                "team_composition": team_composition,
+                "synergy_analysis": response.content,
+                "character_builds_analyzed": bool(character_builds),
+                "team_size": len(team_composition)
+            }
+            
+        except Exception as e:
+            print(f"Error analyzing team synergy: {str(e)}")
+            return {"error": str(e)}
 
 
 # Singleton instance
