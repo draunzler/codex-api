@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 import os
 
 
@@ -23,12 +23,22 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = int(os.getenv("PORT", "8000"))
     
+    # CORS Configuration (FastAPI equivalent of ALLOWED_HOSTS)
+    allowed_origins: str = os.getenv("ALLOWED_HOSTS", "*")
+    
     # Genshin Data Update Interval (in hours)
     update_interval: int = 4
     
     # Environment and Logging
     environment: str = os.getenv("ENVIRONMENT", "development")
     log_level: str = "info"
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Convert ALLOWED_ORIGINS string to list for CORS middleware."""
+        if self.allowed_origins == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.allowed_origins.split(",")]
     
     class Config:
         env_file = ".env"

@@ -52,16 +52,8 @@ from models import (
     QuestionRequest, QuestionResponse,
     FarmingRouteRequest, FarmingRouteResponse, EnhancedFarmingRouteResponse,
     ExplorationResponse, ExplorationDataResponse, ExplorationSummaryResponse,
-    ExplorationCredentialsRequest, SchedulerStatusResponse,
-    ErrorResponse, SuccessResponse,
+    ExplorationCredentialsRequest, SchedulerStatusResponse, SuccessResponse,
     SetupInstructionsResponse, ManualCharacterRequest, RefreshStatusResponse,
-    CharacterRequest, CharacterListResponse,
-    TeamRequest, TeamResponse, TeamListResponse,
-    ArtifactRequest, ArtifactResponse, ArtifactListResponse,
-    WeaponRequest, WeaponResponse, WeaponListResponse,
-    CharacterAnalysisRequest, CharacterAnalysisResponse,
-    MaterialRequest, MaterialResponse, MaterialListResponse,
-    CharacterIconRequest, CharacterIconResponse,
     SimpleDamageRequest, SimpleDamageResponse,
     TeamDamageRequest, TeamDamageResponse,
     UserProfileResponse
@@ -226,7 +218,7 @@ app.default_response_class = CustomJSONResponse
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=settings.cors_origins,  # Use configurable origins from settings
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
