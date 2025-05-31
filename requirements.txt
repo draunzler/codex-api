@@ -20,3 +20,4 @@ requests
 numpy
 aiohttp
 asyncio-throttle
+genshin
