@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # Development API Service with hot reload
+  genshin-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development
+    container_name: genshin-api-dev
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Debug port
+    environment:
+      # MongoDB Atlas Configuration
+      - MONGODB_URL=mongodb+srv://draunzler:${MONGODB_PASSWORD}@test.nmxzjdn.mongodb.net/
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+      - DATABASE_NAME=genshin-lm
+      
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      
+      # Development settings
+      - ENVIRONMENT=development
+      - LOG_LEVEL=debug
+      - UPDATE_INTERVAL=1  # More frequent updates for testing
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379
+      
+      # Google API Keys
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - GOOGLE_CSE_API_KEY=${GOOGLE_CSE_API_KEY}
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      - /app/__pycache__  # Exclude pycache
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - genshin-network-dev
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
+
+  # MongoDB Atlas is used instead of local MongoDB
+  # No local MongoDB container needed for development
+
+  # Redis for development
+  redis:
+    image: redis:7.2-alpine
+    container_name: genshin-redis-dev
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - genshin-network-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MongoDB Express not needed for Atlas
+  # Use MongoDB Atlas web interface for database management
+
+  # Redis Commander for development
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: genshin-redis-commander-dev
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - genshin-network-dev
+    restart: unless-stopped
+
+volumes:
+  redis_dev_data:
+    driver: local
+
+networks:
+  genshin-network-dev:
+    driver: bridge 
