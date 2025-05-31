@@ -1,0 +1,55 @@
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Logs
+logs/
+*.log
+
+# Docker files (not needed for Render)
+Dockerfile
+docker-compose.yml
+docker-compose.dev.yml
+docker-run.sh
+.dockerignore
+docker/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+DAMAGE_CALCULATOR_GUIDE.md
+
+# Test files
+test_*
+*_test.py
+tests/
+
+# Example files
+exampleResponse.json
+debug_duplicate_key.py
+
+# Character icons (will be downloaded at runtime)
+character_icons/
+
+# Temporary files
+*.tmp
+*.temp 
