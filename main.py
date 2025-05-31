@@ -1092,9 +1092,9 @@ async def calculate_team_damage(request: TeamDamageRequest):
                 "damage_breakdown": buffed_damage_result["damage_breakdown"],
                 "damage_increase": {
                     ability: {
-                        "base_average": base_damage_result["damage_breakdown"][ability]["average"],
-                        "buffed_average": buffed_damage_result["damage_breakdown"][ability]["average"],
-                        "increase_percent": ((buffed_damage_result["damage_breakdown"][ability]["average"] / base_damage_result["damage_breakdown"][ability]["average"]) - 1) * 100 if base_damage_result["damage_breakdown"][ability]["average"] > 0 else 0
+                        "base_average": base_damage_result["damage_breakdown"][ability]["base"]["average"],
+                        "buffed_average": buffed_damage_result["damage_breakdown"][ability]["base"]["average"],
+                        "increase_percent": ((buffed_damage_result["damage_breakdown"][ability]["base"]["average"] / base_damage_result["damage_breakdown"][ability]["base"]["average"]) - 1) * 100 if base_damage_result["damage_breakdown"][ability]["base"]["average"] > 0 else 0
                     }
                     for ability in ["normal_attack", "charged_attack", "elemental_skill", "elemental_burst"]
                     if ability in base_damage_result["damage_breakdown"] and ability in buffed_damage_result["damage_breakdown"]

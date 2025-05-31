@@ -801,10 +801,16 @@ class GenshinAIAssistant:
             best_ability = "normal_attack"
             
             for ability, data in base_breakdown.items():
-                if isinstance(data, dict) and "average" in data:
-                    if data["average"] > max_damage:
-                        max_damage = data["average"]
-                        best_ability = ability
+                current_damage = 0
+                if isinstance(data, dict):
+                    if "average" in data:
+                        current_damage = data["average"]
+                    elif "base" in data and isinstance(data["base"], dict):
+                        current_damage = data["base"].get("average", 0)
+                
+                if current_damage > max_damage:
+                    max_damage = current_damage
+                    best_ability = ability
             
             summary = {
                 "primary_damage_source": best_ability,
@@ -816,7 +822,18 @@ class GenshinAIAssistant:
             
             # Add damage increase if buffed damage available
             if buffed_damage and best_ability in buffed_damage.get("damage_breakdown", {}):
-                buffed_max = buffed_damage["damage_breakdown"][best_ability].get("average", 0)
+                buffed_ability_data = buffed_damage["damage_breakdown"][best_ability]
+                # Handle both direct average access and nested base.average access
+                if isinstance(buffed_ability_data, dict):
+                    if "average" in buffed_ability_data:
+                        buffed_max = buffed_ability_data["average"]
+                    elif "base" in buffed_ability_data and isinstance(buffed_ability_data["base"], dict):
+                        buffed_max = buffed_ability_data["base"].get("average", 0)
+                    else:
+                        buffed_max = 0
+                else:
+                    buffed_max = 0
+                    
                 if max_damage > 0:
                     damage_increase = ((buffed_max / max_damage) - 1) * 100
                     summary["damage_increase_percent"] = round(damage_increase, 1)
