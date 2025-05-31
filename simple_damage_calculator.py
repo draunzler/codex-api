@@ -726,5 +726,257 @@ class SimpleDamageCalculator:
         # Default fallback
         return "pyro"
 
+    def analyze_team_reactions(self, team_composition: List[str], main_character: str) -> Dict[str, Any]:
+        """
+        Analyze possible elemental reactions for a team composition.
+        
+        Args:
+            team_composition: List of character names in the team
+            main_character: The main DPS character to focus on
+            
+        Returns:
+            Dictionary containing reaction analysis
+        """
+        try:
+            # Get elements for all team members
+            team_elements = []
+            character_elements = {}
+            
+            for character in team_composition:
+                element = self.get_character_element(character)
+                team_elements.append(element)
+                character_elements[character] = element
+            
+            main_element = character_elements.get(main_character, "physical")
+            
+            # Analyze possible reactions
+            possible_reactions = []
+            recommended_reactions = []
+            
+            # Check for amplifying reactions (Vaporize, Melt)
+            if main_element == "pyro":
+                if "hydro" in team_elements:
+                    possible_reactions.append("vaporize")
+                    recommended_reactions.append("vaporize")
+                if "cryo" in team_elements:
+                    possible_reactions.append("melt")
+                    recommended_reactions.append("melt")
+            elif main_element == "hydro":
+                if "pyro" in team_elements:
+                    possible_reactions.append("vaporize")
+                    recommended_reactions.append("vaporize")
+                if "cryo" in team_elements:
+                    possible_reactions.append("freeze")
+                    recommended_reactions.append("freeze")
+            elif main_element == "cryo":
+                if "pyro" in team_elements:
+                    possible_reactions.append("melt")
+                    recommended_reactions.append("melt")
+                if "hydro" in team_elements:
+                    possible_reactions.append("freeze")
+                    recommended_reactions.append("freeze")
+            
+            # Check for transformative reactions
+            if main_element == "electro":
+                if "hydro" in team_elements:
+                    possible_reactions.append("electrocharged")
+                    recommended_reactions.append("electrocharged")
+                if "pyro" in team_elements:
+                    possible_reactions.append("overloaded")
+                if "cryo" in team_elements:
+                    possible_reactions.append("superconduct")
+            
+            # Check for Swirl (Anemo)
+            if "anemo" in team_elements and main_element != "anemo":
+                possible_reactions.append("swirl")
+                recommended_reactions.append("swirl")
+            
+            # Check for Crystallize (Geo)
+            if "geo" in team_elements and main_element not in ["geo", "anemo"]:
+                possible_reactions.append("crystallize")
+            
+            # Dendro reactions
+            if main_element == "dendro":
+                if "electro" in team_elements:
+                    possible_reactions.extend(["quicken", "aggravate"])
+                    recommended_reactions.append("quicken")
+                if "hydro" in team_elements:
+                    possible_reactions.extend(["bloom", "hyperbloom"])
+                    recommended_reactions.append("bloom")
+                if "pyro" in team_elements:
+                    possible_reactions.extend(["burning", "burgeon"])
+            
+            # Calculate team synergy score
+            synergy_score = 0
+            if len(set(team_elements)) >= 2:  # At least 2 different elements
+                synergy_score += 30
+            if len(recommended_reactions) > 0:  # Has good reactions
+                synergy_score += 40
+            if len(recommended_reactions) >= 2:  # Multiple reaction options
+                synergy_score += 20
+            if "anemo" in team_elements:  # VV support
+                synergy_score += 10
+            
+            # Elemental coverage analysis
+            elemental_coverage = {
+                "total_elements": len(set(team_elements)),
+                "elements_present": list(set(team_elements)),
+                "missing_elements": [elem for elem in ["pyro", "hydro", "electro", "cryo", "anemo", "geo", "dendro"] 
+                                   if elem not in team_elements],
+                "has_elemental_resonance": len([elem for elem in set(team_elements) if team_elements.count(elem) >= 2]) > 0
+            }
+            
+            return {
+                "main_character": main_character,
+                "main_element": main_element,
+                "team_elements": character_elements,
+                "possible_reactions": possible_reactions,
+                "recommended_reactions": recommended_reactions,
+                "team_synergy": {
+                    "synergy_score": synergy_score,
+                    "rating": "Excellent" if synergy_score >= 80 else "Good" if synergy_score >= 60 else "Average" if synergy_score >= 40 else "Poor"
+                },
+                "elemental_coverage": elemental_coverage,
+                "reaction_priority": recommended_reactions[:2] if recommended_reactions else []
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing team reactions: {str(e)}")
+            return {
+                "main_character": main_character,
+                "main_element": "unknown",
+                "team_elements": {},
+                "possible_reactions": [],
+                "recommended_reactions": [],
+                "team_synergy": {"synergy_score": 0, "rating": "Unknown"},
+                "elemental_coverage": {"total_elements": 0, "elements_present": [], "missing_elements": [], "has_elemental_resonance": False},
+                "reaction_priority": []
+            }
+
+    def calculate_character_damage(
+        self,
+        character_name: str,
+        character_stats: CharacterStats,
+        enemy_stats: EnemyStats,
+        reactions: List[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Calculate comprehensive damage for a character across all abilities.
+        
+        Args:
+            character_name: Name of the character
+            character_stats: Character's stats
+            enemy_stats: Enemy stats for calculation
+            reactions: List of reactions to consider
+            
+        Returns:
+            Dictionary containing comprehensive damage analysis
+        """
+        try:
+            # Get character data
+            element = self.get_character_element(character_name)
+            talent_multipliers = self.get_talent_multipliers(character_name)
+            
+            # Calculate damage for each ability type
+            damage_breakdown = {}
+            ability_types = ["normal_attack", "charged_attack", "elemental_skill", "elemental_burst"]
+            
+            for ability_type in ability_types:
+                # Get talent multiplier
+                if ability_type == "normal_attack":
+                    multiplier = talent_multipliers.normal_attack[0]  # First hit
+                elif ability_type == "charged_attack":
+                    multiplier = talent_multipliers.charged_attack
+                elif ability_type == "elemental_skill":
+                    multiplier = talent_multipliers.elemental_skill
+                elif ability_type == "elemental_burst":
+                    multiplier = talent_multipliers.elemental_burst
+                else:
+                    multiplier = 100.0
+                
+                # Determine damage element
+                if ability_type in ["normal_attack", "charged_attack"]:
+                    damage_element = "physical"  # Default for normal attacks
+                    # Some characters have elemental normal attacks
+                    if character_name.lower() in ["childe", "ayato", "kokomi"]:
+                        damage_element = element
+                else:
+                    damage_element = element
+                
+                # Calculate base damage
+                base_damage = self.calculate_single_hit_damage(
+                    character_stats=character_stats,
+                    enemy_stats=enemy_stats,
+                    talent_multiplier=multiplier,
+                    ability_type=ability_type,
+                    scaling_attribute=talent_multipliers.scaling_attribute,
+                    damage_element=damage_element
+                )
+                
+                # Calculate damage with reactions if provided
+                reaction_damage = {}
+                if reactions:
+                    for reaction in reactions:
+                        reaction_data = ReactionData(
+                            reaction_type=reaction,
+                            trigger_element=element,
+                            aura_element=self._get_aura_element_for_reaction(reaction, element),
+                            character_level=character_stats.level,
+                            elemental_mastery=character_stats.elemental_mastery,
+                            reaction_bonus=0.0
+                        )
+                        
+                        reaction_result = self.calculate_single_hit_damage(
+                            character_stats=character_stats,
+                            enemy_stats=enemy_stats,
+                            talent_multiplier=multiplier,
+                            ability_type=ability_type,
+                            scaling_attribute=talent_multipliers.scaling_attribute,
+                            damage_element=damage_element,
+                            reaction_data=reaction_data
+                        )
+                        
+                        reaction_damage[reaction] = reaction_result
+                
+                damage_breakdown[ability_type] = {
+                    "base": base_damage,
+                    "reactions": reaction_damage,
+                    "multiplier": multiplier,
+                    "damage_element": damage_element
+                }
+            
+            # Find highest damage ability
+            max_damage = 0
+            best_ability = "normal_attack"
+            for ability, data in damage_breakdown.items():
+                base_avg = data["base"].get("average", 0)
+                if base_avg > max_damage:
+                    max_damage = base_avg
+                    best_ability = ability
+            
+            return {
+                "character_name": character_name,
+                "element": element,
+                "damage_breakdown": damage_breakdown,
+                "highest_damage_ability": best_ability,
+                "max_average_damage": max_damage,
+                "scaling_attribute": talent_multipliers.scaling_attribute,
+                "reactions_analyzed": reactions if reactions else [],
+                "calculation_method": "comprehensive_character_analysis"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating character damage: {str(e)}")
+            return {
+                "character_name": character_name,
+                "element": "unknown",
+                "damage_breakdown": {},
+                "highest_damage_ability": "unknown",
+                "max_average_damage": 0,
+                "scaling_attribute": "atk",
+                "reactions_analyzed": [],
+                "error": str(e)
+            }
+
 # Global calculator instance
 damage_calculator = SimpleDamageCalculator() 
